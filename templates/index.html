@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<section class="hero">
+  <h1>Auditoria completa do arquivo SPED</h1>
+  <p class="lead">
+    Suba o TXT padrão da EFD-Contribuições. O sistema roda todos os checks de
+    estrutura, coerência (CST × alíquota × valor × CFOP) e reconciliação
+    (detalhe × bloco M × 0111) e devolve o laudo com o número de cada linha.
+  </p>
+
+  <form action="{{ url_for('auditar') }}" method="post"
+        enctype="multipart/form-data" id="form-upload">
+    <label class="dropzone" id="dropzone">
+      <input type="file" name="arquivo" id="arquivo" accept=".txt" hidden>
+      <div class="dz-conteudo">
+        <div class="dz-icone">⬆</div>
+        <p class="dz-titulo">Arraste o arquivo aqui</p>
+        <p class="dz-sub">ou clique para escolher · apenas .txt</p>
+        <p class="dz-nome" id="dz-nome"></p>
+      </div>
+    </label>
+    <button type="submit" class="btn-primario" id="btn-auditar" disabled>
+      Auditar arquivo
+    </button>
+    <p class="processando" id="processando" hidden>Processando o arquivo…</p>
+  </form>
+
+  <div class="checks-info">
+    <div class="col">
+      <h3>Campos e estrutura</h3>
+      <p>E01–E29: tipo/obrigatoriedade por campo, totalizadores, hierarquia,
+         dígitos verificadores, documento cancelado ou duplicado, datas e
+         cadastros, ordem dos blocos, retificadora, chave eletrônica e
+         tabelas oficiais de CST/crédito.</p>
+    </div>
+    <div class="col">
+      <h3>Coerência</h3>
+      <p>C01–C08: CST × alíquota × valor × CFOP, erro aritmético e
+         divergência item × documento.</p>
+    </div>
+    <div class="col">
+      <h3>Reconciliação</h3>
+      <p>R01–R13: detalhe × bloco M × registro 0111, crédito detalhado
+         (M100/M105/M500/M505), saldo credor entre períodos (Bloco 1) e
+         NF-e consolidada (C180/C181/C185).</p>
+    </div>
+    <div class="col">
+      <h3>Tese fiscal</h3>
+      <p>T01–T04: monofásico, insumo, ativo imobilizado e amparo judicial —
+         <b>sinalização para revisão técnica</b>, não veredito automático.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const input = document.getElementById('arquivo');
+  const dz = document.getElementById('dropzone');
+  const nome = document.getElementById('dz-nome');
+  const btn = document.getElementById('btn-auditar');
+  const form = document.getElementById('form-upload');
+  const proc = document.getElementById('processando');
+
+  function mostrar(f) {
+    if (f) { nome.textContent = f.name; btn.disabled = false; }
+  }
+  input.addEventListener('change', () => mostrar(input.files[0]));
+  ['dragover', 'dragenter'].forEach(ev =>
+    dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('ativo'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('ativo'); }));
+  dz.addEventListener('drop', e => {
+    if (e.dataTransfer.files.length) {
+      input.files = e.dataTransfer.files;
+      mostrar(input.files[0]);
+    }
+  });
+  form.addEventListener('submit', () => {
+    btn.disabled = true; btn.textContent = 'Auditando…'; proc.hidden = false;
+  });
+</script>
+{% endblock %}

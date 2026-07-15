@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# PDFs oficiais e texto extraido usados so para a reconciliacao do leiaute
+# (arquivos grandes, nao sao codigo do projeto -- ver README para como
+# reobter/regerar se precisar continuar a reconciliacao)
+file.pdf
+file 2.pdf
+_guia_pratico_full.txt
+_manual2013_full.txt

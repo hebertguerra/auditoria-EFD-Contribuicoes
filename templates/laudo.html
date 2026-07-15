@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block titulo %}Laudo · {{ laudo.empresa.nome }}{% endblock %}
+{% block conteudo %}
+{% set r = laudo.resumo %}
+
+<section class="cabecalho-laudo">
+  <div>
+    <h1>{{ laudo.empresa.nome or "Empresa não identificada" }}</h1>
+    <p class="meta">
+      CNPJ {{ laudo.empresa.cnpj or "—" }} ·
+      competência {{ laudo.empresa.competencia_ini }} a {{ laudo.empresa.competencia_fim }} ·
+      {{ laudo.arquivo.regime }}
+    </p>
+    <p class="meta sub">
+      {{ "{:,}".format(laudo.arquivo.total_linhas) }} linhas ·
+      {{ laudo.arquivo.tipos_registro }} tipos de registro ·
+      gerado em {{ laudo.gerado_em }}
+    </p>
+    <p class="meta sub aviso-nucleo">
+      Checks sem selo são <b>NÚCLEO</b> (leiaute central, conferência de alta confiança).
+      Checks com selo <span class="tag estendido inline">ESTENDIDO</span> dependem de registros
+      cujo leiaute exato ainda não foi conferido contra o Guia Prático oficial — use como pista
+      para investigar, não como conclusão fechada.
+    </p>
+  </div>
+  <div class="downloads">
+    <a class="btn-download pdf" href="{{ url_for('download', token=token, formato='pdf') }}">Baixar PDF</a>
+    <a class="btn-download csv" href="{{ url_for('download', token=token, formato='csv') }}">Baixar CSV</a>
+    <a class="btn-novo" href="{{ url_for('index') }}">Novo arquivo</a>
+  </div>
+</section>
+
+<section class="cards">
+  <div class="card"><span class="num">{{ r.com_achado }}</span><span class="rot">checks com achado</span></div>
+  <div class="card ok"><span class="num">{{ r.sem_achado }}</span><span class="rot">sem achado</span></div>
+  <div class="card"><span class="num">{{ r.ocorrencias }}</span><span class="rot">ocorrências</span></div>
+  <div class="card alta"><span class="num">{{ r.por_severidade.ALTA }}</span><span class="rot">severidade alta</span></div>
+  <div class="card valor"><span class="num">R$ {{ "{:,.2f}".format(r.valor_total) }}</span><span class="rot">valor sob análise</span></div>
+</section>
+
+<section class="filtros">
+  <span class="filtro-rot">Filtrar:</span>
+  <button class="chip ativo" data-filtro="todos">Todos</button>
+  <button class="chip" data-filtro="ALTA">Alta</button>
+  <button class="chip" data-filtro="MEDIA">Média</button>
+  <button class="chip" data-filtro="BAIXA">Baixa</button>
+  <button class="chip" data-filtro="ok">Sem achado</button>
+</section>
+
+<section class="lista-checks">
+  {% for c in laudo.checks %}
+  <article class="check {{ 'com-achado' if c.tem_achado else 'sem-achado' }}"
+           data-sev="{{ c.severidade if c.tem_achado else 'ok' }}">
+    <header class="check-head">
+      <span class="ind" style="background: {{ c.cor_severidade if c.tem_achado else '#2ecc71' }}"></span>
+      <span class="cid">{{ c.id }}</span>
+      <span class="ctitulo">{{ c.titulo }}</span>
+      <span class="tags">
+        {% if c.tem_achado %}
+          <span class="tag caixa" style="background: {{ c.cor_caixa }}">{{ c.caixa }}</span>
+          <span class="tag sev" style="background: {{ c.cor_severidade }}">{{ c.severidade }}</span>
+          <span class="tag n">{{ c.n_ocorrencias }}×</span>
+          {% if c.valor %}<span class="tag v">R$ {{ "{:,.2f}".format(c.valor) }}</span>{% endif %}
+          {% if c.confianca == "ESTENDIDO" %}<span class="tag estendido" title="Leiaute pendente de conferência contra o Guia Prático vigente — tratar como pista, não como certeza">ESTENDIDO</span>{% endif %}
+        {% else %}
+          <span class="tag ok">ok</span>
+        {% endif %}
+      </span>
+    </header>
+    {% if c.tem_achado %}
+    {% if c.confianca == "ESTENDIDO" %}
+    <p class="aviso-estendido">Este check depende de registros cujo leiaute exato (ordem/nome de campos) não foi conferido contra o Guia Prático oficial — confirme antes de usar como evidência definitiva.</p>
+    {% endif %}
+    <p class="base">base: {{ c.base }}</p>
+    <div class="tabela-wrap">
+      <table class="tabela-ocorr">
+        <thead>
+          <tr><th>Linha</th><th>Reg.</th><th>Referência</th><th>Detalhe</th><th class="dir">Valor R$</th></tr>
+        </thead>
+        <tbody>
+          {% for a in c.ocorrencias[:100] %}
+          <tr>
+            <td class="mono">{% if a.linha %}L{{ a.linha }}{% else %}—{% endif %}</td>
+            <td class="mono">{{ a.registro }}</td>
+            <td>{{ a.referencia }}</td>
+            <td>{{ a.detalhe }}</td>
+            <td class="dir mono">{% if a.valor %}{{ "{:,.2f}".format(a.valor) }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if c.n_ocorrencias > 100 %}
+      <p class="mais">… mais {{ c.n_ocorrencias - 100 }} ocorrência(s). Baixe o CSV para o detalhe completo.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const chips = document.querySelectorAll('.chip');
+  const checks = document.querySelectorAll('.check');
+  chips.forEach(chip => chip.addEventListener('click', () => {
+    chips.forEach(c => c.classList.remove('ativo'));
+    chip.classList.add('ativo');
+    const f = chip.dataset.filtro;
+    checks.forEach(ck => {
+      const sev = ck.dataset.sev;
+      const mostra = f === 'todos' || f === sev;
+      ck.style.display = mostra ? '' : 'none';
+    });
+  }));
+</script>
+{% endblock %}
