@@ -58,6 +58,10 @@ Isto é diagnóstico técnico do arquivo, não parecer fiscal.
 
 ## Uso
 
+**Windows:** use `python` (não `python3` — no Windows puro, `python3` não é um
+comando reconhecido; ele abre a Microsoft Store em vez de rodar o script).
+Os exemplos abaixo usam `python`, que funciona em Windows, Mac e Linux.
+
 ### Tela web (upload + laudo + PDF/CSV)
 ```bash
 pip install -r requirements.txt
@@ -69,15 +73,21 @@ processado em memória e apagado logo após a leitura.
 
 ### Linha de comando
 ```bash
-python3 -m audita.cli arquivo.txt laudo.csv
+python -m audita.cli arquivo.txt laudo.csv
 ```
 
 ### Arquivo de exemplo
 ```bash
-python3 gerar_exemplo.py   # cria exemplo_sped.txt com ~15 erros propositais
+python gerar_exemplo.py   # cria exemplo_sped.txt com ~15 erros propositais
 ```
 A lista completa dos erros propositais e de qual check cada um exercita
 está no docstring de `gerar_exemplo.py`.
+
+Se `pip install` reclamar de permissão ou instalar no lugar errado, confirme
+que está usando o mesmo `python` do `pip`: rode `python -m pip install -r
+requirements.txt` em vez de `pip install -r requirements.txt` — isso garante
+que a instalação vai para o interpretador que você de fato vai usar para
+rodar o projeto.
 
 ## Estrutura
 ```
