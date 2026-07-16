@@ -4,17 +4,48 @@ import io
 
 from .report import linhas_csv
 
+# Excel em portugues (BR) usa "," como separador decimal, entao o separador
+# de coluna do CSV precisa ser ";" -- com "," o Excel-BR nao quebra as
+# colunas e joga a linha inteira dentro da celula A (foi o que aconteceu:
+# ver feedback do usuario). Nome de coluna amigavel -> chave interna, na
+# ordem em que aparecem no arquivo (mais facil de ler primeiro: gravidade e
+# categoria, depois o que/onde, deixando ID tecnico e base legal por ultimo).
+_COLUNAS = [
+    ("Severidade", "severidade"),
+    ("Categoria", "caixa"),
+    ("Achado", "titulo"),
+    ("Linha", "linha"),
+    ("Registro", "registro"),
+    ("Referencia", "referencia"),
+    ("Detalhamento", "detalhe"),
+    ("Valor (R$)", "valor"),
+    ("Codigo do check", "check"),
+    ("Confiabilidade", "confianca"),
+    ("Base legal/tecnica", "base"),
+]
+
+
+def _valor_br(v):
+    """"23000.00" (ponto) -> "23.000,00" (formato numerico BR)."""
+    try:
+        s = f"{float(v):,.2f}"
+    except (TypeError, ValueError):
+        return v
+    return s.replace(",", "\0").replace(".", ",").replace("\0", ".")
+
 
 def para_csv(laudo):
-    """Devolve os bytes de um CSV (utf-8-sig, abre no Excel-BR)."""
+    """Devolve os bytes de um CSV (";", utf-8-sig -- abre certo no Excel-BR)."""
     linhas = linhas_csv(laudo)
     buf = io.StringIO()
-    campos = ["check", "titulo", "severidade", "caixa", "confianca", "linha", "registro",
-              "referencia", "detalhe", "valor", "base"]
-    w = csv.DictWriter(buf, fieldnames=campos)
-    w.writeheader()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow([titulo for titulo, _ in _COLUNAS])
     for l in linhas:
-        w.writerow(l)
+        w.writerow([
+            _valor_br(l["valor"]) if chave == "valor" else
+            ("" if chave == "linha" and not l["linha"] else l[chave])
+            for _, chave in _COLUNAS
+        ])
     return buf.getvalue().encode("utf-8-sig")
 
 
