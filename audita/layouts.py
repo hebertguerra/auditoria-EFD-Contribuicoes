@@ -9,6 +9,90 @@ documento; contornado extraindo o texto via pypdf por linha de comando).
 Confirmado pela primeira pagina do documento: "Guia Pratico da EFD
 Contribuicoes - Versao 1.35: Atualizacao em 18/06/2021".
 
+RODADA 7 -- familia "Lucro Presumido consolidado" (registros 1900, F500,
+F510, F525, F550, F560), conferida campo a campo contra o mesmo PDF do
+Guia Pratico v1.35 ja usado desde a Rodada 1 (_guia_pratico_full.txt --
+os 6 registros ja estavam la, so nao tinham sido modelados ainda). Motivo
+da rodada: usuario colou o texto de uma Nota Tecnica sobre os registros
+1900/F525 (exemplo numerico de PJ do lucro presumido); antes de modelar a
+partir desse texto colado, procurei os mesmos registros na fonte primaria
+ja verificada -- estavam la, com a coluna "Obrig" oficial, entao a
+reconciliacao foi feita contra o PDF de verdade, nao contra o texto
+colado (mesma disciplina da Rodada 1: nunca modelar leiaute a partir de
+fonte secundaria quando a primaria esta disponivel). Zero divergencia de
+ordem de campo entre o exemplo da Nota Tecnica e o Guia Pratico.
+  - 1900 (nivel 2, Bloco 1): consolidacao de documentos emitidos por PJ do
+    lucro presumido com escrituracao consolidada (alternativa ao C100/
+    C170 individualizado). Obrig=S confirmado: CNPJ, COD_MOD, VL_TOT_REC.
+  - F500/F510 (nivel 3, Bloco F, regime de caixa): consolidacao por CST;
+    F500 usa aliquota ad valorem (%), F510 usa aliquota por unidade de
+    medida de produto em reais (bebidas frias/combustivel/alcool, regime
+    especial). Obrig=S: VL_REC_CAIXA, CST_PIS, CST_COFINS.
+  - F525 (nivel 3, Bloco F): detalhamento da composicao da receita
+    RECEBIDA no regime de caixa (por cliente, administradora de cartao,
+    titulo de credito, item ou outro criterio). O proprio Guia afirma que
+    o total do F525 deve bater com o total do F500 -- implementado como
+    check R20 (reconciliacao.py), por soma de totais (nao por vinculo de
+    hierarquia -- ver nota abaixo). Obrig=S: VL_REC, IND_REC, VL_REC_DET.
+  - F550/F560 (nivel 3, Bloco F, regime de competencia): espelho exato de
+    F500/F510, so que para receita AUFERIDA (competencia) em vez de
+    RECEBIDA (caixa) -- campo 02 chama VL_REC_COMP em vez de
+    VL_REC_CAIXA, resto identico. Obrig=S: VL_REC_COMP, CST_PIS,
+    CST_COFINS.
+  - Nota sobre hierarquia: o Guia da "Nivel hierarquico 3" para F500,
+    F510, F525, F550 e F560 (todos no mesmo nivel), sem indicar de forma
+    inequivoca no texto qual registro e o pai fisico direto de cada um
+    dentro do arquivo (diferente de C100->C170, onde a hierarquia e clara
+    pela propria estrutura de secoes do Guia). Por isso nenhum destes foi
+    adicionado ao dicionario PAI -- evita falso positivo em E04 por um
+    vinculo de hierarquia que eu nao conseguiria confirmar com certeza. A
+    reconciliacao F525 x F500/F510 (R20) usa soma de totais, o mesmo
+    padrao ja usado em R01/R02 entre 0111 e o detalhe (que tambem nao
+    depende de vinculo de hierarquia).
+
+RODADA 6 -- Nota Tecnica EFD-Contribuicoes no 012/2026 (11 paginas, PDF
+fornecido pelo usuario, extraido para _nota_tecnica_012_2026_full.txt):
+"Orientacao para os Contribuintes de PIS/COFINS" sobre a Lei Complementar
+no 224/2025 (reducao linear de incentivos e beneficios tributarios,
+vigente a partir de 01/04/2026, regulamentada pela IN RFB no 2.305/2025).
+Pesquisa web confirmou antes desta rodada (varias buscas, sempre
+consistente) que o Guia Pratico como documento segue na v1.35 -- nao ha
+versao 1.36+ publicada -- entao a base de reconciliacao do leiaute
+continua valida; esta NT e um adendo especifico, nao uma revisao geral.
+Achados da leitura:
+  - O mecanismo NAO cria registro novo nem exige mudanca no CST original
+    da operacao (confirmado explicitamente pelo texto: "nao devem ser
+    alteradas as informacoes de codigo de situacao tributaria - CST
+    originalmente previstas na legislacao"). Usa os registros de ajuste
+    que ja sao modelados aqui: M110/M115, M220/M225 (PIS) e M510/M515,
+    M620/M625 (COFINS) -- ja reconciliados pelos checks R17 e R19. Nenhuma
+    mudanca estrutural necessaria nesses registros.
+  - 2 codigos novos na Tabela 4.3.8 (COD_AJ), introduzidos por esta NT:
+    "11" (reducao de aliquota zero/isencao, art. 4o par. 4o I da LC
+    224/2025) e "12" (limite de 90% no aproveitamento de credito
+    presumido, art. 4o par. 2o II d da LC 224/2025). Modelados em T05
+    (checks/tese.py) como sinalizacao -- NAO e a Tabela 4.3.8 completa,
+    so estes 2 codigos documentados por esta NT especifica.
+  - Gaps identificados mas NAO implementados por falta de fonte primaria
+    completa (a NT da exemplos simplificados, nao o layout de campo
+    inteiro -- ver nota de rodape do proprio documento: "O conteudo
+    completo de cada registro esta disponivel no Guia Pratico"):
+    registro C110 (informacoes complementares do documento fiscal,
+    referencia o registro 0450 -- tabela de codigo de informacao
+    complementar), registro F550/F500 (consolidacao de receita para
+    lucro presumido). Nenhum dos dois e modelado aqui ainda.
+  - Pesquisa web tambem apontou a familia D500/D501/D505/D509/D600/D601/
+    D605 (documentos de comunicacao/telecomunicacao, incluindo NFCom
+    modelo 62 desde 01/04/2025, Nota Tecnica 009/2024) e o registro F600/
+    F700 (contribuicao retida na fonte) como gaps reais e mais antigos
+    (nao sao novidade desta NT 012/2026) -- nao modelados aqui por
+    decisao consciente: a fonte disponivel foi busca web/blog de
+    fornecedor de ERP, nao o PDF oficial. Implementar direto de fonte
+    secundaria contraria o principio deste projeto (ver Rodada 1 do
+    changelog abaixo, onde uma citacao de fonte nao consultada foi
+    corrigida). Requer o PDF oficial (Guia Pratico ou a propria NT
+    009/2024) antes de qualquer modelagem de campo.
+
 RODADA 4 -- tambem conferidos campo a campo: C190, C191, C195 (espelho de
 C180/C181/C185 para aquisicoes/devolucoes consolidadas por NF-e) e M210,
 M211, M610, M611 (decomposicao da contribuicao apurada por COD_CONT).
@@ -31,14 +115,15 @@ faltavam no dicionario de hierarquia (M215/M615 ficavam sem registro pai
 vinculado) -- pego pelo proprio teste automatizado ao calibrar as
 contagens esperadas contra o resultado real do CLI.
 
-TODOS os 60 registros usados no leiaute foram conferidos CAMPO A CAMPO (ou,
+TODOS os 66 registros usados no leiaute foram conferidos CAMPO A CAMPO (ou,
 no caso dos 5 citados acima, por simetria de padrao) contra o texto
 extraido desse PDF (ordem de campo e coluna "Obrig" S/N de cada campo):
 0000, 0110, 0111, 0140, 0150, 0190, 0200, 0400, 0500, C010, C100, C170,
 C500, C501, C505, D010, D100, D101, D105, A010, A100, A170, F010, F100,
-M100, M105, M110, M115, M200, M210, M211, M215, M220, M225, M400, M410,
-M500, M505, M510, M515, M600, M610, M611, M615, M620, M625, M800, M810,
-9900, 9999, 1010, 1011, 1100, 1500, C180, C181, C185, C190, C191, C195. Em
+F500, F510, F525, F550, F560, M100, M105, M110, M115, M200, M210, M211,
+M215, M220, M225, M400, M410, M500, M505, M510, M515, M600, M610, M611,
+M615, M620, M625, M800, M810, 9900, 9999, 1010, 1011, 1100, 1500, 1900,
+C180, C181, C185, C190, C191, C195. Em
 TODOS os casos a ordem de campo reconstruida de memoria bateu exatamente
 com o texto oficial (0 divergencias de ordem/campo); os erros encontrados
 foram todos de obrigatoriedade (campo marcado O quando o Guia mostra N, ou
@@ -171,6 +256,45 @@ LAYOUTS = {
     "F100": ["REG","IND_OPER","COD_PART","COD_ITEM","DT_OPER","VL_OPER","CST_PIS",
              "VL_BC_PIS","ALIQ_PIS","VL_PIS","CST_COFINS","VL_BC_COFINS","ALIQ_COFINS",
              "VL_COFINS","NAT_BC_CRED","IND_ORIG_CRED","COD_CTA","COD_CCUS","DESC_DOC_OPER"],
+
+    # Familia "Lucro Presumido consolidado" (regime de caixa ou de
+    # competencia) -- conferida campo a campo contra o Guia Pratico v1.35
+    # nesta rodada. F500/F510 = regime de caixa (VL_REC_CAIXA); F550/F560
+    # = regime de competencia (VL_REC_COMP); a diferenca entre o par
+    # "500/550" e "510/560" e a base de calculo (F500/F550 usam aliquota
+    # ad valorem em % sobre valor; F510/F560 usam aliquota em reais sobre
+    # quantidade -- produtos monofasicos de bebidas frias/combustivel/
+    # alcool por unidade de medida). F525 detalha a composicao da receita
+    # RECEBIDA no regime de caixa (por cliente/cartao/titulo/item) -- o
+    # Guia afirma explicitamente que o total do F525 deve bater com o
+    # total do F500 (ver check R20 em reconciliacao.py). Nao ha um
+    # registro pai unico e inequivoco para esta familia dentro do Bloco F
+    # (o Guia da a mesma "Nivel hierarquico 3" pra todos, sem indicar
+    # nesting fisico no arquivo) -- por isso nenhum PAI foi declarado
+    # aqui; a reconciliacao F525 x F500 e feita por soma de totais (mesmo
+    # padrao ja usado em R01/R02 entre 0111 e o detalhe), nao por vinculo
+    # de hierarquia.
+    "F500": ["REG","VL_REC_CAIXA","CST_PIS","VL_DESC_PIS","VL_BC_PIS","ALIQ_PIS","VL_PIS",
+             "CST_COFINS","VL_DESC_COFINS","VL_BC_COFINS","ALIQ_COFINS","VL_COFINS",
+             "COD_MOD","CFOP","COD_CTA","INFO_COMPL"],
+    "F510": ["REG","VL_REC_CAIXA","CST_PIS","VL_DESC_PIS","QUANT_BC_PIS","ALIQ_PIS_QUANT",
+             "VL_PIS","CST_COFINS","VL_DESC_COFINS","QUANT_BC_COFINS","ALIQ_COFINS_QUANT",
+             "VL_COFINS","COD_MOD","CFOP","COD_CTA","INFO_COMPL"],
+    "F525": ["REG","VL_REC","IND_REC","CNPJ_CPF","NUM_DOC","COD_ITEM","VL_REC_DET",
+             "CST_PIS","CST_COFINS","INFO_COMPL","COD_CTA"],
+    "F550": ["REG","VL_REC_COMP","CST_PIS","VL_DESC_PIS","VL_BC_PIS","ALIQ_PIS","VL_PIS",
+             "CST_COFINS","VL_DESC_COFINS","VL_BC_COFINS","ALIQ_COFINS","VL_COFINS",
+             "COD_MOD","CFOP","COD_CTA","INFO_COMPL"],
+    "F560": ["REG","VL_REC_COMP","CST_PIS","VL_DESC_PIS","QUANT_BC_PIS","ALIQ_PIS_QUANT",
+             "VL_PIS","CST_COFINS","VL_DESC_COFINS","QUANT_BC_COFINS","ALIQ_COFINS_QUANT",
+             "VL_COFINS","COD_MOD","CFOP","COD_CTA","INFO_COMPL"],
+
+    # Registro 1900 (Bloco 1): consolidacao dos documentos emitidos por PJ
+    # do lucro presumido com escrituracao consolidada -- alternativa ao
+    # C100/C170 individualizado, na mesma logica do C180 para o lucro real.
+    # Conferido campo a campo contra o Guia Pratico v1.35 nesta rodada.
+    "1900": ["REG","CNPJ","COD_MOD","SER","SUB_SER","COD_SIT","VL_TOT_REC","QUANT_DOC",
+             "CST_PIS","CST_COFINS","CFOP","INF_COMPL","COD_CTA"],
 
     # Escrituracao consolidada de aquisicoes/devolucoes por NF-e (espelho do
     # C180/C181/C185 para o lado de entrada). C191/C195 tem um campo a mais
@@ -393,6 +517,12 @@ OBRIGATORIOS = {
     # estavam faltando -- conferido no PDF.
     "A170": {"NUM_ITEM", "COD_ITEM", "VL_ITEM", "CST_PIS", "CST_COFINS"},
     "F100": {"IND_OPER", "DT_OPER", "VL_OPER", "CST_PIS", "CST_COFINS"},
+    "F500": {"VL_REC_CAIXA", "CST_PIS", "CST_COFINS"},
+    "F510": {"VL_REC_CAIXA", "CST_PIS", "CST_COFINS"},
+    "F525": {"VL_REC", "IND_REC", "VL_REC_DET"},
+    "F550": {"VL_REC_COMP", "CST_PIS", "CST_COFINS"},
+    "F560": {"VL_REC_COMP", "CST_PIS", "CST_COFINS"},
+    "1900": {"CNPJ", "COD_MOD", "VL_TOT_REC"},
     "M200": {"VL_TOT_CONT_NC_PER", "VL_TOT_CRED_DESC", "VL_TOT_CRED_DESC_ANT",
               "VL_TOT_CONT_NC_DEV", "VL_RET_NC", "VL_OUT_DED_NC", "VL_CONT_NC_REC",
               "VL_TOT_CONT_CUM_PER", "VL_RET_CUM", "VL_OUT_DED_CUM",

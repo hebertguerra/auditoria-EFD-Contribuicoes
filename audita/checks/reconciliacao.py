@@ -435,3 +435,20 @@ def r19(doc):
                 yield Achado(pai.linha, pai_reg, f"{nome} {pai['COD_CONT']} (reducao)",
                              f"VL_AJUS_REDUC={decl_reduc:,.2f} x soma {filho_reg}={reduc:,.2f}",
                              abs(reduc - decl_reduc))
+
+
+@check("R20", "F525 (regime de caixa, lucro presumido): total detalhado nao bate com F500/F510",
+       ESTRUTURA, "MEDIA",
+       "Guia Pratico, registro F525: \"O total das receitas relacionadas "
+       "nos registros F525 deve corresponder ao total das receitas "
+       "recebidas, relacionadas nos registros F500\" -- F510 somado junto "
+       "por ser a mesma consolidacao de regime de caixa, so que com "
+       "aliquota por unidade de medida de produto (mesmo VL_REC_CAIXA)")
+def r20(doc):
+    soma_f525 = sum(r.n("VL_REC") for r in doc.todos("F525"))
+    soma_caixa = (sum(r.n("VL_REC_CAIXA") for r in doc.todos("F500"))
+                  + sum(r.n("VL_REC_CAIXA") for r in doc.todos("F510")))
+    if abs(soma_f525 - soma_caixa) > _tol(soma_caixa):
+        yield Achado(0, "F525", "regime de caixa (lucro presumido)",
+                     f"soma F525.VL_REC={soma_f525:,.2f} x soma F500/F510.VL_REC_CAIXA={soma_caixa:,.2f}",
+                     abs(soma_f525 - soma_caixa))

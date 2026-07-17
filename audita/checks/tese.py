@@ -34,6 +34,21 @@ NAT_BC_CRED_IMOBILIZADO = {"09", "10"}
 
 TOL_RELEVANCIA = 5000.00  # limiar de materialidade para nao poluir o laudo
 
+# Tabela 4.3.8 (Codigo do Ajuste) -- so estes 2 codigos, introduzidos pela
+# Nota Tecnica EFD-Contribuicoes no 012/2026 para a Lei Complementar no
+# 224/2025 (reducao linear de incentivos e beneficios tributarios, vigente
+# a partir de 01/04/2026). NAO e a tabela 4.3.8 completa -- so o que a NT
+# 012/2026 documenta; por isso T05 apenas reconhece/sinaliza estes 2
+# codigos quando aparecem, nao valida COD_AJ contra a tabela inteira (que
+# o audita nao tem).
+COD_AJ_REDUCAO_LINEAR = {
+    "11": "reducao linear -- aliquota zero/isencao (LC 224/2025, art. 4o, "
+          "par. 4o, I; formula do art. 7o da IN RFB 2.305/2025)",
+    "12": "reducao linear -- limite de 90% no aproveitamento de credito "
+          "presumido (LC 224/2025, art. 4o, par. 2o, II, d; art. 10 da "
+          "IN RFB 2.305/2025)",
+}
+
 
 def _chave_item(r):
     """Melhor identificador disponivel para o item/participante do registro
@@ -150,3 +165,26 @@ def t04(doc):
                              f"{t} CST 01 com aliquota {al}% fora do padrao "
                              f"({esperado}) e nenhum registro 1010 (processo judicial) "
                              "no arquivo -- confirmar amparo legal da divergencia")
+
+
+@check("T05", "Ajuste de reducao linear de incentivos/beneficios (LC 224/2025) identificado",
+       OPORTUNIDADE, "BAIXA",
+       "Lei Complementar no 224/2025, IN RFB no 2.305/2025 (Anexo Unico "
+       "atualizado pela IN RFB no 2.307/2026 -- lista de incentivos "
+       "preservados da reducao, nao afeta o mecanismo de escrituracao) e "
+       "Nota Tecnica EFD-Contribuicoes no 012/2026 -- vigente a partir de "
+       "01/04/2026. O CST original da operacao (ex.: 06/07) nao muda; o "
+       "ajuste e feito via M110/M220 (PIS) e M510/M620 (COFINS), que o "
+       "audita ja reconcilia (R17/R19) -- este check so identifica quando "
+       "o mecanismo esta em uso, nao valida o calculo")
+def t05(doc):
+    for reg, nome in (("M220", "PIS"), ("M620", "COFINS"),
+                       ("M110", "PIS"), ("M510", "COFINS")):
+        for r in doc.todos(reg):
+            cod_aj = r["COD_AJ"].strip()
+            explicacao = COD_AJ_REDUCAO_LINEAR.get(cod_aj)
+            if explicacao:
+                yield Achado(r.linha, reg, nome,
+                             f"COD_AJ={cod_aj} -- {explicacao} -- confirmar memoria "
+                             "de calculo conforme a IN RFB 2.305/2025",
+                             r.n("VL_AJ"))

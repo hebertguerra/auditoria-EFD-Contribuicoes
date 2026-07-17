@@ -10,6 +10,16 @@ file.pdf
 file 2.pdf
 _guia_pratico_full.txt
 _manual2013_full.txt
+NOTA*.pdf
+NT_*.pdf
+NotaTecnica*.doc*
+IN RFB*.pdf
+Manual_ECF*.pdf
+*.crdownload
+_nota_tecnica*.txt
+_nt_*.txt
+_in_rfb*.txt
+_manual_ecf*.txt
 
 # Arquivos SPED reais (dado fiscal sigiloso, Art. 198 CTN / LGPD) e laudos
 # gerados a partir deles nunca devem entrar no controle de versao -- so os

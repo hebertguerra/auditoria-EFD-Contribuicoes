@@ -138,8 +138,8 @@ audita/
       campos.py         # E17-E19: tipo/formato/obrigatoriedade por campo
       estrutura.py       # E01-E29: arquivo contra ele mesmo
       coerencia.py        # C01-C08: CST x alíquota x valor x CFOP
-      reconciliacao.py    # R01-R19: detalhe x bloco M x 0111 x Bloco 1
-      tese.py              # T01-T04: sinalização de tese fiscal (não veredito)
+      reconciliacao.py    # R01-R20: detalhe x bloco M x 0111 x Bloco 1
+      tese.py              # T01-T05: sinalização de tese fiscal (não veredito)
     cli.py         # console + CSV
 ```
 
@@ -150,8 +150,8 @@ audita/
 | Campos (`campos.py`) | E17-E19 | campo obrigatório vazio; campo N fora do formato SPED; campo D com data inválida |
 | Estrutura (`estrutura.py`) | E01-E31 | totalizadores de bloco, hierarquia pai/filho, dígitos verificadores (CNPJ, chave NF-e), item/participante sem cadastro, documento cancelado com valor apurado, chave/documento duplicado, valor negativo, data de emissão incoerente, `COD_NAT`/`COD_CTA` sem cadastro, ordem dos blocos do arquivo, cadastro (`0200`/`0150`) duplicado, retificadora sem `NUM_REC_ANTERIOR`, documento eletrônico sem chave de acesso, registro extemporâneo obsoleto do Bloco 1, `NAT_BC_CRED`/CST/`COD_CRED` fora das tabelas oficiais 4.3.6/4.3.7/4.3.3-4, indício de encoding incorreto na leitura do arquivo (E30), `COD_VER` do arquivo divergente da versão de leiaute modelada (E31) |
 | Coerência (`coerencia.py`) | C01-C08 | CST divergente entre PIS/COFINS, CST sem incidência com valor, aritmética base×alíquota, alíquota fora do padrão do regime, CFOP incompatível com o sentido, soma dos itens x cabeçalho |
-| Reconciliação (`reconciliacao.py`) | R01-R19 | 0111 x detalhe, exportação sem 0111, débito/crédito no detalhe sem bloco M, M410/M810 x M400/M800, soma interna do 0111 (R07), fórmula de consolidação M200/M600 (R08), crédito no detalhe sem consolidação (R06), identidades M100/M500 (R09), base de cálculo M100/M500 x M105/M505 (R10), identidades 1100/1500 — saldo credor entre períodos (R11), crédito de período anterior 1100/1500 x M200/M600 (R12), C180 x detalhamento C181/C185 (R13), C190 x detalhamento C191/C195 (R14), identidades M210/M610 (R15), M200/M600 x soma M210/M610 por `COD_CONT` (R16), ajuste de crédito M100/M500 x M110/M510 (R17), ajuste de base de cálculo M210/M610 x M215/M615 (R18), ajuste de contribuição M210/M610 x M220/M620 (R19) |
-| Tese fiscal (`tese.py`) | T01-T04 | monofásico/ST dependente de tabela externa de NCM, crédito de insumo relevante (essencialidade/relevância — tese STJ), crédito de ativo imobilizado, alíquota fora do padrão sem processo judicial (1010) no arquivo — **sinalização para revisão técnica, não veredito automático** (ver "Como um auditor revisaria isto") |
+| Reconciliação (`reconciliacao.py`) | R01-R20 | 0111 x detalhe, exportação sem 0111, débito/crédito no detalhe sem bloco M, M410/M810 x M400/M800, soma interna do 0111 (R07), fórmula de consolidação M200/M600 (R08), crédito no detalhe sem consolidação (R06), identidades M100/M500 (R09), base de cálculo M100/M500 x M105/M505 (R10), identidades 1100/1500 — saldo credor entre períodos (R11), crédito de período anterior 1100/1500 x M200/M600 (R12), C180 x detalhamento C181/C185 (R13), C190 x detalhamento C191/C195 (R14), identidades M210/M610 (R15), M200/M600 x soma M210/M610 por `COD_CONT` (R16), ajuste de crédito M100/M500 x M110/M510 (R17), ajuste de base de cálculo M210/M610 x M215/M615 (R18), ajuste de contribuição M210/M610 x M220/M620 (R19), F525 x F500/F510 (lucro presumido, regime de caixa — R20) |
+| Tese fiscal (`tese.py`) | T01-T05 | monofásico/ST dependente de tabela externa de NCM, crédito de insumo relevante (essencialidade/relevância — tese STJ), crédito de ativo imobilizado, alíquota fora do padrão sem processo judicial (1010) no arquivo, ajuste de redução linear de incentivos/benefícios (LC 224/2025, a partir de 01/04/2026) identificado — **sinalização para revisão técnica, não veredito automático** (ver "Como um auditor revisaria isto") |
 
 Checks novos nas últimas rodadas de revisão (ver "Como um auditor revisaria
 isto" abaixo): **E22** (ordem dos blocos 0-A-C-D-F-M-1-9), **E23** (cadastro
@@ -161,7 +161,9 @@ isto" abaixo): **E22** (ordem dos blocos 0-A-C-D-F-M-1-9), **E23** (cadastro
 Bloco 1, consolidação de NF-e C180/C181/C185, tabelas oficiais 4.3.6/4.3.7),
 **T01-T04** (tese fiscal), **E30** (indício de encoding incorreto na
 leitura do arquivo), **E31** (`COD_VER` do arquivo divergente da versão de
-leiaute modelada).
+leiaute modelada), **T05** (ajuste de redução linear de incentivos/
+benefícios da LC 224/2025 identificado), **R20** (F525 x F500/F510,
+consolidação de lucro presumido pelo regime de caixa).
 
 ### Testes automatizados
 ```bash
@@ -466,6 +468,59 @@ experiente as levantaria:
    motivou a correção, o achado espúrio desapareceu (449 → 448 ocorrências
    totais) sem alterar nenhum outro check.
 
-9. **Isto é diagnóstico técnico do arquivo, não parecer fiscal — e os
-   checks T01-T04 são sinalização para revisão humana, não substituem
-   análise jurídica.**
+9. **Pesquisa de atualizações legislativas (LC 224/2025) — check T05
+   novo.** Pesquisa web (múltiplas buscas, sempre consistentes) confirmou
+   que o Guia Prático como documento segue na v1.35 — não há versão
+   1.36+ publicada, a base de reconciliação do leiaute continua válida.
+   O usuário forneceu a **Nota Técnica EFD-Contribuições nº 012/2026**
+   (11 páginas, PDF local, mesmo processo de extração via `pypdf` — texto
+   em `_nota_tecnica_012_2026_full.txt`, gitignored), sobre a Lei
+   Complementar nº 224/2025 (redução linear de incentivos e benefícios
+   tributários, vigente a partir de 01/04/2026, IN RFB nº 2.305/2025).
+   Confirmado pela leitura: o mecanismo **não cria registro novo nem muda
+   o CST original da operação** — usa os registros de ajuste que o
+   `audita` já modela e já reconcilia (`M110/M115`, `M220/M225` para PIS;
+   `M510/M515`, `M620/M625` para COFINS; checks `R17`/`R19`). Só 2 códigos
+   novos na Tabela 4.3.8 (`COD_AJ`): `11` (redução de alíquota
+   zero/isenção) e `12` (limite de 90% no crédito presumido) — modelados
+   em **T05** como sinalização (identifica o uso do mecanismo, não valida
+   o cálculo). A mesma pesquisa também apontou gaps reais mas **não
+   implementados por decisão consciente**, por só termos fonte secundária
+   (busca web/blog de ERP, não o PDF oficial) — implementar leiaute a
+   partir disso repetiria o erro já corrigido no item 1 acima: registros
+   `C110`/`0450` (informação complementar do documento fiscal), `F500`/
+   `F550` (consolidação lucro presumido), a família `D500`/`D501`/`D505`/
+   `D509`/`D600`/`D601`/`D605` (documentos de comunicação/telecomunicação,
+   incluindo NFCom modelo 62 desde 01/04/2025) e `F600`/`F700`
+   (contribuição retida na fonte). Ficam registrados como próximo passo
+   assim que o PDF oficial correspondente (Guia Prático ou Nota Técnica
+   009/2024) estiver disponível para reconciliação campo a campo de
+   verdade.
+
+10. **Lucro Presumido consolidado (registros 1900, F500, F510, F525, F550,
+    F560) nunca tinha sido modelado — corrigido nesta rodada, com a mesma
+    disciplina da Rodada 1.** Usuário colou o texto de uma Nota Técnica
+    sobre os registros `1900`/`F525` (PJ do lucro presumido com
+    escrituração consolidada), com exemplo numérico oficial. Antes de
+    modelar leiaute a partir de texto colado, procurei os mesmos
+    registros na fonte primária já usada desde a Rodada 1
+    (`_guia_pratico_full.txt`) — **estavam lá**, com a coluna "Obrig"
+    oficial completa, então a reconciliação foi feita contra o PDF de
+    verdade, não contra o texto colado pelo usuário (mesmo princípio que
+    corrigiu o item 1 deste changelog: nunca modelar a partir de fonte
+    secundária quando a primária está disponível). Resultado: **zero
+    divergência** entre o exemplo numérico da Nota Técnica (R$
+    900.000,00 consolidados no `1900`, R$ 750.000,00 no `F525`) e a
+    ordem de campo lida do Guia — os valores batem exatamente, testado em
+    `tests/test_lucro_presumido.py`. Novo check **R20**: o Guia afirma
+    explicitamente que o total do `F525` deve bater com o total do
+    `F500` — reconciliado por soma de totais (mesmo padrão de `R01`/`R02`
+    entre `0111` e o detalhe), não por vínculo de hierarquia, porque o
+    Guia dá "Nível hierárquico 3" para `F500`/`F510`/`F525`/`F550`/`F560`
+    sem indicar de forma inequívoca qual é o pai físico de cada um no
+    arquivo — arriscar isso geraria falso positivo em `E04`. Total de
+    registros conferidos campo a campo: de 60 para 66.
+
+11. **Isto é diagnóstico técnico do arquivo, não parecer fiscal — e os
+    checks T01-T05 são sinalização para revisão humana, não substituem
+    análise jurídica.**
