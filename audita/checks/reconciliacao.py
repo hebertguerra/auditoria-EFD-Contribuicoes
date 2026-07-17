@@ -5,6 +5,18 @@ from .coerencia import _itens_pis_cofins
 from ..layouts import COD_CONT_NAO_CUMULATIVO, COD_CONT_CUMULATIVO
 
 TOL = 1.00
+# Teto absoluto de tolerancia: sem isso, o piso relativo de 0,5% escala sem
+# limite para contribuintes grandes (0,5% de uma base de R$ 500 milhoes =
+# R$ 2,5 milhoes de divergencia tolerada sem gerar achado). Acima deste
+# valor, a divergencia sempre gera achado, mesmo que seja < 0,5% da base.
+TETO_TOLERANCIA = 10_000.00
+
+
+def _tol(valor):
+    """Tolerancia de reconciliacao: piso de TOL (R$ 1,00), 0,5% do valor
+    declarado, com teto absoluto de TETO_TOLERANCIA -- o menor teto entre
+    o relativo e o absoluto que ainda vale."""
+    return min(TETO_TOLERANCIA, max(TOL, abs(valor) * 0.005))
 
 
 def _receita_por_cst(doc):
@@ -33,7 +45,7 @@ def r01(doc):
              ("REC_BRU_NCUM_NT_MI", nao_trib, "nao tributada"))
     for campo, calc, nome in pares:
         decl = r.n(campo)
-        if abs(decl - calc) > max(TOL, calc * 0.005):
+        if abs(decl - calc) > _tol(calc):
             yield Achado(r.linha, "0111", nome,
                          f"declarado {decl:,.2f} x detalhe {calc:,.2f}",
                          abs(decl - calc))
@@ -75,7 +87,7 @@ def r04(doc):
     _, nao_trib, por_cst = _receita_por_cst(doc)
     for reg, nome in (("M400", "PIS"), ("M800", "COFINS")):
         tot = sum(r.n("VL_TOT_REC") for r in doc.todos(reg))
-        if tot > 0 and abs(tot - nao_trib) > max(TOL, nao_trib * 0.005):
+        if tot > 0 and abs(tot - nao_trib) > _tol(nao_trib):
             yield Achado(doc.um(reg).linha, reg, nome,
                          f"{reg}={tot:,.2f} x detalhe nao tributado={nao_trib:,.2f}",
                          abs(tot - nao_trib))
@@ -123,7 +135,7 @@ def r07(doc):
     soma = (r.n("REC_BRU_NCUM_TRIB_MI") + r.n("REC_BRU_NCUM_NT_MI")
             + r.n("REC_BRU_NCUM_EXP") + r.n("REC_BRU_CUM"))
     total = r.n("REC_BRU_TOTAL")
-    if abs(soma - total) > max(TOL, total * 0.005):
+    if abs(soma - total) > _tol(total):
         yield Achado(r.linha, "0111", "totais",
                      f"soma das partes {soma:,.2f} x REC_BRU_TOTAL declarado {total:,.2f}",
                      abs(soma - total))
@@ -144,21 +156,21 @@ def r08(doc):
         dev = (r.n("VL_TOT_CONT_NC_PER") - r.n("VL_TOT_CRED_DESC")
                - r.n("VL_TOT_CRED_DESC_ANT"))
         decl_dev = r.n("VL_TOT_CONT_NC_DEV")
-        if abs(dev - decl_dev) > max(TOL, abs(decl_dev) * 0.005):
+        if abs(dev - decl_dev) > _tol(abs(decl_dev)):
             yield Achado(r.linha, reg, f"{nome} nao-cumulativo (devido)",
                          f"campo05 calcula {dev:,.2f}, declarado {decl_dev:,.2f}",
                          abs(dev - decl_dev))
 
         rec_nc = decl_dev - r.n("VL_RET_NC") - r.n("VL_OUT_DED_NC")
         decl_rec_nc = r.n("VL_CONT_NC_REC")
-        if abs(rec_nc - decl_rec_nc) > max(TOL, abs(decl_rec_nc) * 0.005):
+        if abs(rec_nc - decl_rec_nc) > _tol(abs(decl_rec_nc)):
             yield Achado(r.linha, reg, f"{nome} nao-cumulativo (a recolher)",
                          f"campo08 calcula {rec_nc:,.2f}, declarado {decl_rec_nc:,.2f}",
                          abs(rec_nc - decl_rec_nc))
 
         total = decl_rec_nc + r.n("VL_CONT_CUM_REC")
         decl_total = r.n("VL_TOT_CONT_REC")
-        if abs(total - decl_total) > max(TOL, abs(decl_total) * 0.005):
+        if abs(total - decl_total) > _tol(abs(decl_total)):
             yield Achado(r.linha, reg, f"{nome} total do periodo",
                          f"campo13 calcula {total:,.2f}, declarado {decl_total:,.2f}",
                          abs(total - decl_total))
@@ -176,14 +188,14 @@ def r09(doc):
         for r in doc.todos(reg):
             disp = r.n("VL_CRED") + r.n("VL_AJUS_ACRES") - r.n("VL_AJUS_REDUC") - r.n(campo_dif)
             decl_disp = r.n("VL_CRED_DISP")
-            if abs(disp - decl_disp) > max(TOL, abs(decl_disp) * 0.005):
+            if abs(disp - decl_disp) > _tol(abs(decl_disp)):
                 yield Achado(r.linha, reg, f"{nome} {r['COD_CRED']}",
                              f"campo12 calcula {disp:,.2f}, declarado {decl_disp:,.2f}",
                              abs(disp - decl_disp))
 
             sld = decl_disp - r.n("VL_CRED_DESC")
             decl_sld = r.n("SLD_CRED")
-            if abs(sld - decl_sld) > max(TOL, abs(decl_sld) * 0.005):
+            if abs(sld - decl_sld) > _tol(abs(decl_sld)):
                 yield Achado(r.linha, reg, f"{nome} {r['COD_CRED']}",
                              f"campo15 calcula {sld:,.2f}, declarado {decl_sld:,.2f}",
                              abs(sld - decl_sld))
@@ -202,7 +214,7 @@ def r10(doc):
                 continue
             soma = sum(f.n(campo) for f in filhos)
             decl = pai.n(campo)
-            if abs(soma - decl) > max(TOL, abs(decl) * 0.005):
+            if abs(soma - decl) > _tol(abs(decl)):
                 yield Achado(pai.linha, pai_reg, f"{nome} {pai['COD_CRED']}",
                              f"{pai_reg}.{campo}={decl:,.2f} x soma {filho_reg}={soma:,.2f}",
                              abs(soma - decl))
@@ -218,7 +230,7 @@ def r11(doc):
         for r in doc.todos(reg):
             tot = r.n("VL_CRED_APU") + r.n("VL_CRED_EXT_APU")
             decl_tot = r.n("VL_TOT_CRED_APU")
-            if abs(tot - decl_tot) > max(TOL, abs(decl_tot) * 0.005):
+            if abs(tot - decl_tot) > _tol(abs(decl_tot)):
                 yield Achado(r.linha, reg, f"{nome} {r['PER_APU_CRED']}",
                              f"campo08 calcula {tot:,.2f}, declarado {decl_tot:,.2f}",
                              abs(tot - decl_tot))
@@ -226,7 +238,7 @@ def r11(doc):
             disp = (decl_tot - r.n("VL_CRED_DESC_PA_ANT") - r.n("VL_CRED_PER_PA_ANT")
                     - r.n("VL_CRED_DCOMP_PA_ANT"))
             decl_disp = r.n("SD_CRED_DISP_EFD")
-            if abs(disp - decl_disp) > max(TOL, abs(decl_disp) * 0.005):
+            if abs(disp - decl_disp) > _tol(abs(decl_disp)):
                 yield Achado(r.linha, reg, f"{nome} {r['PER_APU_CRED']}",
                              f"campo12 calcula {disp:,.2f}, declarado {decl_disp:,.2f}",
                              abs(disp - decl_disp))
@@ -234,7 +246,7 @@ def r11(doc):
             fim = (decl_disp - r.n("VL_CRED_DESC_EFD") - r.n("VL_CRED_PER_EFD")
                    - r.n("VL_CRED_DCOMP_EFD") - r.n("VL_CRED_TRANS") - r.n("VL_CRED_OUT"))
             decl_fim = r.n("SLD_CRED_FIM")
-            if abs(fim - decl_fim) > max(TOL, abs(decl_fim) * 0.005):
+            if abs(fim - decl_fim) > _tol(abs(decl_fim)):
                 yield Achado(r.linha, reg, f"{nome} {r['PER_APU_CRED']}",
                              f"campo18 calcula {fim:,.2f}, declarado {decl_fim:,.2f}",
                              abs(fim - decl_fim))
@@ -253,7 +265,7 @@ def r12(doc):
             continue
         soma = sum(r.n("VL_CRED_DESC_EFD") for r in registros)
         decl = m.n("VL_TOT_CRED_DESC_ANT")
-        if abs(soma - decl) > max(TOL, abs(decl) * 0.005):
+        if abs(soma - decl) > _tol(abs(decl)):
             yield Achado(m.linha, reg_m, nome,
                          f"soma {reg_1}.VL_CRED_DESC_EFD={soma:,.2f} x "
                          f"{reg_m}.VL_TOT_CRED_DESC_ANT={decl:,.2f}",
@@ -272,7 +284,7 @@ def r13(doc):
                 continue
             soma = sum(f.n("VL_ITEM") for f in filhos)
             decl = pai.n("VL_TOT_ITEM")
-            if abs(soma - decl) > max(TOL, abs(decl) * 0.005):
+            if abs(soma - decl) > _tol(abs(decl)):
                 yield Achado(pai.linha, "C180", f"item {pai['COD_ITEM']} ({nome})",
                              f"VL_TOT_ITEM={decl:,.2f} x soma {filho_reg}.VL_ITEM={soma:,.2f}",
                              abs(soma - decl))
@@ -291,7 +303,7 @@ def r14(doc):
                 continue
             soma = sum(f.n("VL_ITEM") for f in filhos)
             decl = pai.n("VL_TOT_ITEM")
-            if abs(soma - decl) > max(TOL, abs(decl) * 0.005):
+            if abs(soma - decl) > _tol(abs(decl)):
                 yield Achado(pai.linha, "C190", f"item {pai['COD_ITEM']} ({nome})",
                              f"VL_TOT_ITEM={decl:,.2f} x soma {filho_reg}.VL_ITEM={soma:,.2f}",
                              abs(soma - decl))
@@ -307,7 +319,7 @@ def r15(doc):
         for r in doc.todos(reg):
             bc_ajus = r.n("VL_BC_CONT") + r.n("VL_AJUS_ACRES_BC_" + nome) - r.n("VL_AJUS_REDUC_BC_" + nome)
             decl_bc_ajus = r.n("VL_BC_CONT_AJUS")
-            if abs(bc_ajus - decl_bc_ajus) > max(TOL, abs(decl_bc_ajus) * 0.005):
+            if abs(bc_ajus - decl_bc_ajus) > _tol(abs(decl_bc_ajus)):
                 yield Achado(r.linha, reg, f"{nome} {r['COD_CONT']}",
                              f"campo07 calcula {bc_ajus:,.2f}, declarado {decl_bc_ajus:,.2f}",
                              abs(bc_ajus - decl_bc_ajus))
@@ -315,7 +327,7 @@ def r15(doc):
             total = (r.n("VL_CONT_APUR") + r.n("VL_AJUS_ACRES") - r.n("VL_AJUS_REDUC")
                      - r.n("VL_CONT_DIFER") + r.n("VL_CONT_DIFER_ANT"))
             decl_total = r.n("VL_CONT_PER")
-            if abs(total - decl_total) > max(TOL, abs(decl_total) * 0.005):
+            if abs(total - decl_total) > _tol(abs(decl_total)):
                 yield Achado(r.linha, reg, f"{nome} {r['COD_CONT']}",
                              f"campo16 calcula {total:,.2f}, declarado {decl_total:,.2f}",
                              abs(total - decl_total))
@@ -337,7 +349,7 @@ def r16(doc):
                                         (COD_CONT_CUMULATIVO, "VL_TOT_CONT_CUM_PER", "cumulativo")):
             soma = sum(f.n("VL_CONT_PER") for f in filhos if f["COD_CONT"] in grupo)
             decl = m.n(campo_m)
-            if abs(soma - decl) > max(TOL, abs(decl) * 0.005):
+            if abs(soma - decl) > _tol(abs(decl)):
                 yield Achado(m.linha, reg_m, f"{nome} {rotulo}",
                              f"{reg_m}.{campo_m}={decl:,.2f} x soma {reg_filho}.VL_CONT_PER={soma:,.2f}",
                              abs(soma - decl))
@@ -365,11 +377,11 @@ def r17(doc):
                 continue
             acres, reduc = _soma_ajustes_por_pai(doc, pai, filho_reg)
             decl_acres, decl_reduc = pai.n("VL_AJUS_ACRES"), pai.n("VL_AJUS_REDUC")
-            if abs(acres - decl_acres) > max(TOL, abs(decl_acres) * 0.005):
+            if abs(acres - decl_acres) > _tol(abs(decl_acres)):
                 yield Achado(pai.linha, pai_reg, f"{nome} {pai['COD_CRED']} (acrescimo)",
                              f"VL_AJUS_ACRES={decl_acres:,.2f} x soma {filho_reg}={acres:,.2f}",
                              abs(acres - decl_acres))
-            if abs(reduc - decl_reduc) > max(TOL, abs(decl_reduc) * 0.005):
+            if abs(reduc - decl_reduc) > _tol(abs(decl_reduc)):
                 yield Achado(pai.linha, pai_reg, f"{nome} {pai['COD_CRED']} (reducao)",
                              f"VL_AJUS_REDUC={decl_reduc:,.2f} x soma {filho_reg}={reduc:,.2f}",
                              abs(reduc - decl_reduc))
@@ -392,11 +404,11 @@ def r18(doc):
             reduc = sum(f.n("VL_AJ_BC") for f in filhos if f["IND_AJ_BC"] == "0")
             campo_acres, campo_reduc = "VL_AJUS_ACRES_BC_" + campo_sufixo, "VL_AJUS_REDUC_BC_" + campo_sufixo
             decl_acres, decl_reduc = pai.n(campo_acres), pai.n(campo_reduc)
-            if abs(acres - decl_acres) > max(TOL, abs(decl_acres) * 0.005):
+            if abs(acres - decl_acres) > _tol(abs(decl_acres)):
                 yield Achado(pai.linha, pai_reg, f"{nome} {pai['COD_CONT']} (acrescimo BC)",
                              f"{campo_acres}={decl_acres:,.2f} x soma {filho_reg}={acres:,.2f}",
                              abs(acres - decl_acres))
-            if abs(reduc - decl_reduc) > max(TOL, abs(decl_reduc) * 0.005):
+            if abs(reduc - decl_reduc) > _tol(abs(decl_reduc)):
                 yield Achado(pai.linha, pai_reg, f"{nome} {pai['COD_CONT']} (reducao BC)",
                              f"{campo_reduc}={decl_reduc:,.2f} x soma {filho_reg}={reduc:,.2f}",
                              abs(reduc - decl_reduc))
@@ -415,11 +427,11 @@ def r19(doc):
                 continue
             acres, reduc = _soma_ajustes_por_pai(doc, pai, filho_reg)
             decl_acres, decl_reduc = pai.n("VL_AJUS_ACRES"), pai.n("VL_AJUS_REDUC")
-            if abs(acres - decl_acres) > max(TOL, abs(decl_acres) * 0.005):
+            if abs(acres - decl_acres) > _tol(abs(decl_acres)):
                 yield Achado(pai.linha, pai_reg, f"{nome} {pai['COD_CONT']} (acrescimo)",
                              f"VL_AJUS_ACRES={decl_acres:,.2f} x soma {filho_reg}={acres:,.2f}",
                              abs(acres - decl_acres))
-            if abs(reduc - decl_reduc) > max(TOL, abs(decl_reduc) * 0.005):
+            if abs(reduc - decl_reduc) > _tol(abs(decl_reduc)):
                 yield Achado(pai.linha, pai_reg, f"{nome} {pai['COD_CONT']} (reducao)",
                              f"VL_AJUS_REDUC={decl_reduc:,.2f} x soma {filho_reg}={reduc:,.2f}",
                              abs(reduc - decl_reduc))

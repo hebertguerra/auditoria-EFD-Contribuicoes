@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block titulo %}Lote · {{ lote.grupos|length }} empresa(s){% endblock %}
+{% block conteudo %}
+
+<section class="cabecalho-laudo">
+  <div>
+    <h1>Auditoria em lote</h1>
+    <p class="meta">
+      {{ lote.total_arquivos }} arquivo(s) ·
+      {{ lote.grupos|length }} empresa(s) identificada(s) pelo CNPJ de cada arquivo
+    </p>
+    {% if lote.multiplos_cnpj %}
+    <p class="meta sub aviso-nucleo">
+      Os arquivos enviados pertencem a mais de um CNPJ — agrupados abaixo,
+      um bloco por empresa. Confira se isso é o esperado.
+    </p>
+    {% endif %}
+  </div>
+  <div class="downloads">
+    <a class="btn-download csv" href="{{ url_for('download_lote', token=token) }}">Baixar CSV consolidado</a>
+    <a class="btn-novo" href="{{ url_for('index') }}">Novo arquivo</a>
+  </div>
+</section>
+
+{% for g in lote.grupos %}
+<section class="grupo-cnpj">
+  <h2 class="titulo-grupo">{{ g.nome }} <span class="meta">CNPJ {{ g.cnpj_fmt }}</span></h2>
+
+  {% if g.avisos %}
+  <div class="flash avisos-lote">
+    {% for a in g.avisos %}<p>⚠ {{ a }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <section class="cards">
+    <div class="card"><span class="num">{{ g.resumo.periodos }}</span><span class="rot">período(s)</span></div>
+    <div class="card"><span class="num">{{ g.resumo.ocorrencias }}</span><span class="rot">ocorrências</span></div>
+    <div class="card alta"><span class="num">{{ g.resumo.por_severidade.ALTA }}</span><span class="rot">severidade alta</span></div>
+    <div class="card valor"><span class="num">R$ {{ "{:,.2f}".format(g.resumo.valor_total) }}</span><span class="rot">valor sob análise</span></div>
+  </section>
+
+  {% if g.por_check %}
+  <h3 class="subtitulo">Checks mais recorrentes entre períodos</h3>
+  <p class="meta sub">O que se repete mês a mês costuma ser erro sistêmico de parametrização, não evento isolado.</p>
+  <div class="tabela-wrap">
+    <table class="tabela-ocorr">
+      <thead>
+        <tr><th>Check</th><th>Título</th><th>Reincidência</th><th class="dir">Ocorrências</th><th class="dir">Valor R$</th></tr>
+      </thead>
+      <tbody>
+        {% for a in g.por_check[:15] %}
+        <tr>
+          <td class="mono">{{ a.id }}</td>
+          <td>{{ a.titulo }}
+            <span class="tag sev" style="background: {{ a.cor_severidade }}">{{ a.severidade }}</span>
+            {% if a.confianca == "ESTENDIDO" %}<span class="tag estendido inline">ESTENDIDO</span>{% endif %}
+          </td>
+          <td class="mono">{{ a.periodos_com_achado }}/{{ a.total_periodos }} período(s)</td>
+          <td class="dir mono">{{ a.ocorrencias_total }}</td>
+          <td class="dir mono">{{ "{:,.2f}".format(a.valor_total) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if g.por_check|length > 15 %}
+    <p class="mais">… mais {{ g.por_check|length - 15 }} check(s) com achado. Baixe o CSV consolidado para o detalhe completo.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <h3 class="subtitulo">Períodos</h3>
+  <div class="tabela-wrap">
+    <table class="tabela-ocorr">
+      <thead>
+        <tr><th>Competência</th><th>Arquivo</th><th class="dir">Ocorrências</th><th class="dir">Valor R$</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for p in g.periodos %}
+        <tr>
+          <td class="mono">{{ p.laudo.empresa.competencia_ini }} a {{ p.laudo.empresa.competencia_fim }}</td>
+          <td>{{ p.nome_original }}</td>
+          <td class="dir mono">{{ p.laudo.resumo.ocorrencias }}</td>
+          <td class="dir mono">{{ "{:,.2f}".format(p.laudo.resumo.valor_total) }}</td>
+          <td><a href="{{ url_for('laudo', token=p.token) }}">ver laudo completo →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endfor %}
+
+{% endblock %}

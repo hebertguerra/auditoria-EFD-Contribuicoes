@@ -492,3 +492,29 @@ COD_SIT_SEM_EFEITO = {"02", "03", "04", "05"}
 COD_MOD_CONHECIDOS = {"01", "02", "04", "06", "07", "08", "8B", "09", "10",
                        "11", "13", "14", "15", "16", "17", "18", "21", "22",
                        "26", "27", "29", "55", "57", "59", "60", "63", "65", "66"}
+
+# Guia Pratico, Tabela 3.1.1 (Versao do Leiaute) -- NAO confundir com a
+# versao do proprio Guia Pratico como documento (ex.: "versao 1.35",
+# atualizada em 18/06/2021): sao numeracoes independentes. O Guia e
+# revisado com esclarecimentos/notas tecnicas sem necessariamente mudar a
+# ESTRUTURA do arquivo; o leiaute (campo COD_VER do registro 0000) muda
+# raramente. Tabela extraida do texto do Guia (_guia_pratico_full.txt,
+# secao 3.1.1, pagina 57):
+#   001 = 1.00   (ADE Cofis 31/2010)          vigente a partir de 01/04/2011
+#   002 = 1.01/2.00 (ADE Cofis 34 e 20/2012)  vigente a partir de 01/04/2011
+#   003 = 2.01A  (ADE Cofis 20/2012)          vigente a partir de 01/07/2012
+#   004 = 3.0.0  (ADE Cofis 20/2012)          vigente a partir de 01/06/2018
+#   005 = 3.1.0  (ADE Cofis 82/2018)          vigente a partir de 01/01/2019
+#   006 = 3.2.0                               vigente a partir de 01/01/2020
+# audita/layouts.py foi modelado contra a estrutura da versao 006 (a mais
+# recente documentada no PDF fornecido, Guia Pratico v1.35): e a versao
+# 006 que introduz o registro 1011 e o campo CHV_DOCe do C500, ambos
+# modelados aqui. A versao 005 ja tinha introduzido o leiaute vigente do
+# M210/M610 (com ajuste de base de calculo) e os registros M215/M615 --
+# tambem modelados. Versoes 001-004 usam o leiaute ANTIGO de M210/M610
+# (13 campos, sem o detalhamento de ajuste de base de calculo) -- ver nota
+# em LAYOUTS["M210"]/["M610"] acima sobre por que esse leiaute antigo nao
+# foi modelado (decadencia de 5 anos numa auditoria feita em 2026).
+COD_VER_MODELADO = "006"
+COD_VER_LEIAUTE_ANTIGO_M210 = {"001", "002", "003", "004"}
+COD_VER_CONHECIDOS = {"001", "002", "003", "004", "005", "006"}

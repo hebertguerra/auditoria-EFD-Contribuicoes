@@ -19,8 +19,8 @@ erro. Nenhum destes checks reprova ou aprova nada sozinho.
 """
 from collections import defaultdict
 from . import check, Achado, OPORTUNIDADE
-from .coerencia import _itens_pis_cofins
-from ..layouts import CST_CREDITO, ALIQ_BASICA, ALIQ_CUMULATIVO
+from .coerencia import _itens_pis_cofins, _aliquotas_aceitas
+from ..layouts import CST_CREDITO
 
 # CST_PIS/CST_COFINS de saida que dependem de classificacao de produto por
 # NCM em tabela externa ao Guia Pratico (monofasico, substituicao
@@ -138,13 +138,15 @@ def t03(doc):
 def t04(doc):
     if doc.todos("1010"):
         return
-    padrao = ALIQ_CUMULATIVO if doc.regime_cumulativo else ALIQ_BASICA
+    aceitas = _aliquotas_aceitas(doc)
     vistos = set()
     for i in _itens_pis_cofins(doc):
         for t, cst, al in (("PIS", i["cst_p"], i["al_p"]), ("COFINS", i["cst_c"], i["al_c"])):
-            if cst == "01" and al > 0 and abs(al - padrao[t]) > 0.001 and (t, al) not in vistos:
+            if (cst == "01" and al > 0 and (t, al) not in vistos
+                    and not any(abs(al - a) <= 0.001 for a in aceitas[t])):
                 vistos.add((t, al))
+                esperado = "/".join(f"{a}%" for a in sorted(aceitas[t]))
                 yield Achado(i["r"].linha, i["reg"], t,
                              f"{t} CST 01 com aliquota {al}% fora do padrao "
-                             f"({padrao[t]}%) e nenhum registro 1010 (processo judicial) "
+                             f"({esperado}) e nenhum registro 1010 (processo judicial) "
                              "no arquivo -- confirmar amparo legal da divergencia")

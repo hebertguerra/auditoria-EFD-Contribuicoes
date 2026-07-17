@@ -11,6 +11,7 @@ de quando o campo passa a ser exigido).
 """
 from . import check, Achado, ESTRUTURA
 from ..layouts import LAYOUTS, OBRIGATORIOS
+from ..parser import numero_sped_valido as numero_valido
 
 
 def tipo_campo(nome):
@@ -19,14 +20,6 @@ def tipo_campo(nome):
     if nome.startswith("DT_"):
         return "D"
     return "C"
-
-
-def numero_valido(v):
-    v = (v or "").strip()
-    if not v:
-        return True
-    corpo = v[1:] if v[0] in "+-" else v
-    return bool(corpo) and all(ch.isdigit() or ch in ",." for ch in corpo)
 
 
 def data_valida(v):

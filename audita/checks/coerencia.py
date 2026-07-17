@@ -7,12 +7,17 @@ TOL = 0.02  # tolerancia de centavos
 
 
 def _itens_pis_cofins(doc):
-    """Normaliza C170 / A170 / F100 num formato unico."""
+    """Normaliza C170 / A170 / F100 num formato unico.
+
+    cod_sit carrega a situacao do documento pai (C100/A100) quando existe
+    -- usado pelo C06 para nao comparar documento complementar (COD_SIT=06)
+    contra documento regular do mesmo item (ver COD_SIT_COMPLEMENTAR)."""
     for r in doc.todos("C170"):
         c100 = r.pai
         yield dict(r=r, reg="C170", ref=f"NF {c100['NUM_DOC']}" if c100 else "",
                    item=r["COD_ITEM"], cfop=r["CFOP"],
                    saida=(c100["IND_OPER"] == "1") if c100 else None,
+                   cod_sit=c100["COD_SIT"] if c100 else "",
                    vl_item=r.n("VL_ITEM"),
                    cst_p=r["CST_PIS"], bc_p=r.n("VL_BC_PIS"), al_p=r.n("ALIQ_PIS"), vl_p=r.n("VL_PIS"),
                    cst_c=r["CST_COFINS"], bc_c=r.n("VL_BC_COFINS"), al_c=r.n("ALIQ_COFINS"), vl_c=r.n("VL_COFINS"))
@@ -21,6 +26,7 @@ def _itens_pis_cofins(doc):
         yield dict(r=r, reg="A170", ref=f"NFS {a100['NUM_DOC']}" if a100 else "",
                    item=r["COD_ITEM"], cfop="",
                    saida=(a100["IND_OPER"] == "1") if a100 else None,
+                   cod_sit=a100["COD_SIT"] if a100 else "",
                    vl_item=r.n("VL_ITEM"),
                    cst_p=r["CST_PIS"], bc_p=r.n("VL_BC_PIS"), al_p=r.n("ALIQ_PIS"), vl_p=r.n("VL_PIS"),
                    cst_c=r["CST_COFINS"], bc_c=r.n("VL_BC_COFINS"), al_c=r.n("ALIQ_COFINS"), vl_c=r.n("VL_COFINS"))
@@ -28,6 +34,7 @@ def _itens_pis_cofins(doc):
         yield dict(r=r, reg="F100", ref=f"part {r['COD_PART']}",
                    item=r["COD_ITEM"], cfop="",
                    saida=(r["IND_OPER"] == "1"),
+                   cod_sit="",  # F100 nao tem conceito de documento complementar
                    vl_item=r.n("VL_OPER"),
                    cst_p=r["CST_PIS"], bc_p=r.n("VL_BC_PIS"), al_p=r.n("ALIQ_PIS"), vl_p=r.n("VL_PIS"),
                    cst_c=r["CST_COFINS"], bc_c=r.n("VL_BC_COFINS"), al_c=r.n("ALIQ_COFINS"), vl_c=r.n("VL_COFINS"))
@@ -78,31 +85,65 @@ def c04(doc):
                                  abs(esp - vl))
 
 
+def _aliquotas_aceitas(doc):
+    """Aliquotas basicas validas para CST 01 no regime da escrituracao.
+
+    COD_INC_TRIB=3 ("ambos") permite as duas aliquotas basicas convivendo
+    no mesmo periodo (ex.: receita financeira cumulativa e receita
+    operacional nao-cumulativa) -- reduzir isso a um unico regime gerava
+    falso positivo de "aliquota fora do padrao" para contribuinte de
+    regime misto."""
+    if doc.regime_misto:
+        return {"PIS": {ALIQ_BASICA["PIS"], ALIQ_CUMULATIVO["PIS"]},
+                "COFINS": {ALIQ_BASICA["COFINS"], ALIQ_CUMULATIVO["COFINS"]}}
+    padrao = ALIQ_CUMULATIVO if doc.regime_cumulativo else ALIQ_BASICA
+    return {"PIS": {padrao["PIS"]}, "COFINS": {padrao["COFINS"]}}
+
+
 @check("C05", "Aliquota fora do padrao do regime",
        RISCO, "MEDIA", "Aliquotas basicas: 1,65/7,6 (nao-cumulativo) e 0,65/3,0 (cumulativo)")
 def c05(doc):
-    padrao = ALIQ_CUMULATIVO if doc.regime_cumulativo else ALIQ_BASICA
+    aceitas = _aliquotas_aceitas(doc)
     for i in _itens_pis_cofins(doc):
         for t, cst, al in (("PIS", i["cst_p"], i["al_p"]),
                            ("COFINS", i["cst_c"], i["al_c"])):
-            if cst == "01" and al > 0 and abs(al - padrao[t]) > 0.001:
+            if cst == "01" and al > 0 and not any(abs(al - a) <= 0.001 for a in aceitas[t]):
+                esperado = "/".join(f"{a}%" for a in sorted(aceitas[t]))
                 yield Achado(i["r"].linha, i["reg"], f"{i['ref']} / item {i['item']}",
-                             f"{t} CST 01 com aliquota {al}% (esperado {padrao[t]}%)")
+                             f"{t} CST 01 com aliquota {al}% (esperado {esperado})")
 
 
-@check("C06", "Mesmo item com CST diferente na competencia",
-       RISCO, "ALTA", "Cadastro/parametrizacao inconsistente do produto")
+# Tabela SPED "Situacao do Documento" (COD_SIT do C100/A100) -- 06 =
+# Documento Fiscal Complementar. Um complementar retifica/completa valor
+# de uma NF-e anterior e pode legitimamente carregar CST diferente do
+# documento original (ex.: suspensao da contribuicao vs sem incidencia)
+# sem que isso seja erro de parametrizacao do item -- sao naturezas de
+# documento distintas. Descoberto numa investigacao real (auditoria de
+# arquivo de producao): 2 de 88 saidas do mesmo item tinham CST 09
+# (suspensao) contra CST 08 (sem incidencia) nas outras 86; as 2 eram
+# COD_SIT=06, as 86 eram COD_SIT=00 (documento regular) -- falso positivo
+# antes desta correcao, porque o check comparava as duas categorias juntas.
+COD_SIT_COMPLEMENTAR = "06"
+
+
+@check("C06", "Mesmo item com CST diferente na competencia (documento regular)",
+       RISCO, "ALTA",
+       "Cadastro/parametrizacao inconsistente do produto -- documento "
+       "complementar (COD_SIT=06) e comparado separadamente do documento "
+       "regular, pois pode legitimamente ter CST diferente")
 def c06(doc):
     mapa = defaultdict(lambda: defaultdict(list))
     for i in _itens_pis_cofins(doc):
         if not i["item"] or i["saida"] is None:
             continue
-        chave = (i["item"], "saida" if i["saida"] else "entrada")
+        categoria = "complementar" if i["cod_sit"] == COD_SIT_COMPLEMENTAR else "regular"
+        chave = (i["item"], "saida" if i["saida"] else "entrada", categoria)
         mapa[chave][i["cst_p"]].append(i)
-    for (item, sentido), csts in mapa.items():
+    for (item, sentido, categoria), csts in mapa.items():
         if len(csts) > 1:
             amostra = next(iter(next(iter(csts.values()))))
-            yield Achado(amostra["r"].linha, amostra["reg"], f"item {item} ({sentido})",
+            rotulo = " -- documentos complementares" if categoria == "complementar" else ""
+            yield Achado(amostra["r"].linha, amostra["reg"], f"item {item} ({sentido}){rotulo}",
                          "CST_PIS varia: " + ", ".join(
                              f"{c}({len(v)}x)" for c, v in sorted(csts.items())))
 

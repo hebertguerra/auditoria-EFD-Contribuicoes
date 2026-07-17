@@ -2,7 +2,8 @@
 from collections import defaultdict
 from . import check, Achado, ESTRUTURA, RISCO
 from ..layouts import (PAI, LAYOUTS, COD_SIT_SEM_EFEITO, BLOCO_1_REGISTROS_OBSOLETOS,
-                        NAT_BC_CRED_VALIDOS, CST_VALIDOS, COD_CRED_VALIDOS)
+                        NAT_BC_CRED_VALIDOS, CST_VALIDOS, COD_CRED_VALIDOS,
+                        COD_VER_MODELADO, COD_VER_LEIAUTE_ANTIGO_M210, COD_VER_CONHECIDOS)
 
 
 def _dv_cnpj(c):
@@ -398,3 +399,59 @@ def e29(doc):
             v = r["COD_CRED"].strip()
             if v and v not in COD_CRED_VALIDOS:
                 yield Achado(r.linha, reg, v, f"COD_CRED={v} fora da Tabela 4.3.6")
+
+
+@check("E31", "COD_VER do arquivo diverge da versao de leiaute modelada nesta ferramenta",
+       ESTRUTURA, "ALTA",
+       f"Guia Pratico, Tabela 3.1.1 (Versao do Leiaute) -- audita/layouts.py "
+       f"foi modelado contra COD_VER={COD_VER_MODELADO} (leiaute 3.2.0, "
+       "vigente desde 01/01/2020)")
+def e31(doc):
+    r = doc.um("0000")
+    if not r:
+        return
+    cod_ver = r["COD_VER"].strip()
+    if not cod_ver or cod_ver == COD_VER_MODELADO:
+        return
+    if cod_ver in COD_VER_LEIAUTE_ANTIGO_M210:
+        yield Achado(r.linha, "0000", "COD_VER",
+                     f"COD_VER={cod_ver} usa o leiaute ANTIGO de M210/M610 "
+                     "(13 campos, sem o detalhamento de ajuste de base de "
+                     "calculo) -- esta ferramenta so modela o leiaute vigente "
+                     "(16 campos, a partir de COD_VER=005/01-01-2019); os "
+                     "campos de M210/M610 deste arquivo ficam desalinhados "
+                     "nesta leitura -- nao trate este laudo como evidencia "
+                     "fechada para PIS/COFINS apurado")
+    elif cod_ver in COD_VER_CONHECIDOS:
+        yield Achado(r.linha, "0000", "COD_VER",
+                     f"COD_VER={cod_ver} e uma versao de leiaute anterior a "
+                     f"modelada por esta ferramenta (COD_VER={COD_VER_MODELADO}) "
+                     "-- registros/campos adicionados nas versoes seguintes "
+                     "(ex.: 1011, CHV_DOCe do C500) podem nao existir neste "
+                     "arquivo por nao se aplicarem, nao por omissao; confira "
+                     "antes de tratar este laudo como evidencia fechada")
+    else:
+        yield Achado(r.linha, "0000", "COD_VER",
+                     f"COD_VER={cod_ver} nao consta na Tabela 3.1.1 do Guia "
+                     "Pratico v1.35 (codigos conhecidos ate "
+                     f"{COD_VER_MODELADO}) -- pode ser uma versao de leiaute "
+                     "publicada depois desta reconciliacao; confirme a "
+                     "estrutura contra o Guia Pratico vigente antes de "
+                     "tratar este laudo como evidencia fechada")
+
+
+@check("E30", "Arquivo com indicio de encoding incorreto na leitura",
+       ESTRUTURA, "MEDIA",
+       "Especificacao SPED: arquivo texto usa ANSI/ISO-8859-1 (Latin-1). "
+       "Latin-1 nunca lanca erro de decodificacao, entao um arquivo gravado "
+       "em UTF-8 por engano e lido sem erro, mas com nomes/descricoes "
+       "corrompidos (ex.: 'Ã§' no lugar de 'ç')")
+def e30(doc):
+    if doc.possivel_encoding_incorreto:
+        yield Achado(0, "0000", "",
+                     "arquivo contem padrao tipico de UTF-8 decodificado "
+                     "erroneamente como Latin-1 (sequencias 'Ã'/'Â' seguidas "
+                     "de byte de continuacao) -- campos de texto (NOME, "
+                     "DESCR_ITEM etc.) podem estar corrompidos no laudo; "
+                     "confira o encoding de origem do arquivo antes de "
+                     "confiar nesses campos")

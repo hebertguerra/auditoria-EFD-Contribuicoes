@@ -34,19 +34,71 @@ def _valor_br(v):
     return s.replace(",", "\0").replace(".", ",").replace("\0", ".")
 
 
+# Caracteres que o Excel/LibreOffice interpretam como inicio de formula se
+# estiverem na primeira posicao de uma celula (CSV/Formula Injection --
+# OWASP). Varios achados copiam texto do proprio arquivo SPED nao confiavel
+# (DESCR_ITEM, COD_ITEM, NUM_DOC etc.) para as colunas Referencia/
+# Detalhamento -- um arquivo malicioso poderia usar isso para injetar
+# formula no CSV que o auditor abre depois.
+_CARACTERES_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _celula_segura(v):
+    """Prefixa com apostrofo se o valor comecar com caractere de formula,
+    neutralizando a interpretacao como formula no Excel/LibreOffice."""
+    s = str(v) if v is not None else ""
+    if s.startswith(_CARACTERES_FORMULA):
+        return "'" + s
+    return s
+
+
+def _linha_formatada(l):
+    return [
+        _valor_br(l["valor"]) if chave == "valor" else
+        ("" if chave == "linha" and not l["linha"] else _celula_segura(l[chave]))
+        for _, chave in _COLUNAS
+    ]
+
+
 def para_csv(laudo):
     """Devolve os bytes de um CSV (";", utf-8-sig -- abre certo no Excel-BR)."""
-    linhas = linhas_csv(laudo)
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
     w.writerow([titulo for titulo, _ in _COLUNAS])
-    for l in linhas:
-        w.writerow([
-            _valor_br(l["valor"]) if chave == "valor" else
-            ("" if chave == "linha" and not l["linha"] else l[chave])
-            for _, chave in _COLUNAS
-        ])
+    for l in linhas_csv(laudo):
+        w.writerow(_linha_formatada(l))
     return buf.getvalue().encode("utf-8-sig")
+
+
+def para_csv_lote(lote):
+    """CSV consolidado de um lote: mesmas colunas de para_csv(), com
+    Competencia e Arquivo na frente para identificar de qual periodo cada
+    linha veio -- e o que da pra abrir no Excel e fazer tabela dinamica
+    por competencia (ex.: o mesmo check aparecendo mes a mes)."""
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["Competencia", "Arquivo"] + [titulo for titulo, _ in _COLUNAS])
+    for grupo in lote["grupos"]:
+        for p in grupo["periodos"]:
+            emp = p["laudo"]["empresa"]
+            competencia = f"{emp['competencia_ini']} a {emp['competencia_fim']}"
+            for l in linhas_csv(p["laudo"]):
+                w.writerow([_celula_segura(competencia), _celula_segura(p["nome_original"])]
+                          + _linha_formatada(l))
+    return buf.getvalue().encode("utf-8-sig")
+
+
+def _texto_pdf(v):
+    """Escapa texto antes de entrar num Paragraph do reportlab.
+
+    Paragraph interpreta um subconjunto de marcacao tipo HTML na string
+    recebida -- nao e texto puro. Boa parte do conteudo aqui vem direto do
+    arquivo SPED enviado (nome da empresa, DESCR_ITEM, NUM_DOC, referencias
+    dos achados), que nao e confiavel: um "<" ou "&" solto quebra o parser
+    de marcacao do reportlab na geracao do PDF. Escapar aqui e o unico
+    ponto de entrada dessas strings no documento."""
+    from xml.sax.saxutils import escape
+    return escape(str(v) if v is not None else "")
 
 
 def para_pdf(laudo):
@@ -85,7 +137,7 @@ def para_pdf(laudo):
 
     el.append(Paragraph("Laudo de Auditoria &mdash; EFD-Contribuicoes", h1))
     el.append(Paragraph(
-        f"{emp['nome']} &nbsp;|&nbsp; CNPJ {emp['cnpj']} &nbsp;|&nbsp; "
+        f"{_texto_pdf(emp['nome'])} &nbsp;|&nbsp; CNPJ {emp['cnpj']} &nbsp;|&nbsp; "
         f"competencia {emp['competencia_ini']} a {emp['competencia_fim']}", sub))
     el.append(Paragraph(
         f"Regime: {arq['regime']} &nbsp;|&nbsp; {arq['total_linhas']:,} linhas "
@@ -145,8 +197,8 @@ def para_pdf(laudo):
             dados.append([
                 f"L{a['linha']}" if a["linha"] else "-",
                 a["registro"],
-                Paragraph(a["referencia"][:40], small),
-                Paragraph(a["detalhe"][:80], small),
+                Paragraph(_texto_pdf(a["referencia"][:40]), small),
+                Paragraph(_texto_pdf(a["detalhe"][:80]), small),
                 f"{a['valor']:,.2f}" if a["valor"] else "",
             ])
         tab = Table(dados, colWidths=[14 * mm, 14 * mm, 42 * mm, 78 * mm, 22 * mm],

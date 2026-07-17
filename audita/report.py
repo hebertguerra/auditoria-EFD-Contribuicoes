@@ -29,6 +29,13 @@ def _fmt_cnpj(c):
 def gerar_laudo(caminho):
     """Roda a auditoria completa e devolve um dict estruturado."""
     doc = Documento(caminho)
+    return montar_laudo(doc)
+
+
+def montar_laudo(doc):
+    """Mesma logica de gerar_laudo, mas a partir de um Documento ja lido --
+    usado pelo processamento em lote (audita/lote.py) para nao reabrir e
+    reparsear o mesmo arquivo duas vezes."""
     nome, cnpj = doc.empresa
     ini, fim = doc.competencia
 

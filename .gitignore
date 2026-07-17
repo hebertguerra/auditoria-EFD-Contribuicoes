@@ -10,3 +10,13 @@ file.pdf
 file 2.pdf
 _guia_pratico_full.txt
 _manual2013_full.txt
+
+# Arquivos SPED reais (dado fiscal sigiloso, Art. 198 CTN / LGPD) e laudos
+# gerados a partir deles nunca devem entrar no controle de versao -- so os
+# arquivos sinteticos gerados por gerar_exemplo.py (exemplo_sped.txt) sao
+# rastreados. Cobre tanto o padrao de nome de exportacao de ERP (EFDPISCOF_*)
+# quanto qualquer laudo/CSV de saida gerado ao testar com arquivo real.
+EFDPISCOF_*
+real_saida.csv
+laudo_lote.csv
+laudo_auditoria.*

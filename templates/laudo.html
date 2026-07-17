@@ -22,6 +22,11 @@
       cujo leiaute exato ainda não foi conferido contra o Guia Prático oficial — use como pista
       para investigar, não como conclusão fechada.
     </p>
+    <p class="meta sub aviso-nucleo">
+      <b>Sem achado</b> não é "não verificado" — é o check tendo rodado contra o arquivo inteiro
+      e não encontrado nenhuma ocorrência do problema que ele testa. Clique em qualquer card
+      <span class="tag ok inline">ok</span> abaixo para ver exatamente o que foi conferido.
+    </p>
   </div>
   <div class="downloads">
     <a class="btn-download pdf" href="{{ url_for('download', token=token, formato='pdf') }}">Baixar PDF</a>
@@ -49,25 +54,20 @@
 
 <section class="lista-checks">
   {% for c in laudo.checks %}
-  <article class="check {{ 'com-achado' if c.tem_achado else 'sem-achado' }}"
-           data-sev="{{ c.severidade if c.tem_achado else 'ok' }}">
+  {% if c.tem_achado %}
+  <article class="check com-achado" data-sev="{{ c.severidade }}">
     <header class="check-head">
-      <span class="ind" style="background: {{ c.cor_severidade if c.tem_achado else '#2ecc71' }}"></span>
+      <span class="ind" style="background: {{ c.cor_severidade }}"></span>
       <span class="cid">{{ c.id }}</span>
       <span class="ctitulo">{{ c.titulo }}</span>
       <span class="tags">
-        {% if c.tem_achado %}
-          <span class="tag caixa" style="background: {{ c.cor_caixa }}">{{ c.caixa }}</span>
-          <span class="tag sev" style="background: {{ c.cor_severidade }}">{{ c.severidade }}</span>
-          <span class="tag n">{{ c.n_ocorrencias }}×</span>
-          {% if c.valor %}<span class="tag v">R$ {{ "{:,.2f}".format(c.valor) }}</span>{% endif %}
-          {% if c.confianca == "ESTENDIDO" %}<span class="tag estendido" title="Leiaute pendente de conferência contra o Guia Prático vigente — tratar como pista, não como certeza">ESTENDIDO</span>{% endif %}
-        {% else %}
-          <span class="tag ok">ok</span>
-        {% endif %}
+        <span class="tag caixa" style="background: {{ c.cor_caixa }}">{{ c.caixa }}</span>
+        <span class="tag sev" style="background: {{ c.cor_severidade }}">{{ c.severidade }}</span>
+        <span class="tag n">{{ c.n_ocorrencias }}×</span>
+        {% if c.valor %}<span class="tag v">R$ {{ "{:,.2f}".format(c.valor) }}</span>{% endif %}
+        {% if c.confianca == "ESTENDIDO" %}<span class="tag estendido" title="Leiaute pendente de conferência contra o Guia Prático vigente — tratar como pista, não como certeza">ESTENDIDO</span>{% endif %}
       </span>
     </header>
-    {% if c.tem_achado %}
     {% if c.confianca == "ESTENDIDO" %}
     <p class="aviso-estendido">Este check depende de registros cujo leiaute exato (ordem/nome de campos) não foi conferido contra o Guia Prático oficial — confirme antes de usar como evidência definitiva.</p>
     {% endif %}
@@ -93,8 +93,30 @@
       <p class="mais">… mais {{ c.n_ocorrencias - 100 }} ocorrência(s). Baixe o CSV para o detalhe completo.</p>
       {% endif %}
     </div>
-    {% endif %}
   </article>
+  {% else %}
+  <details class="check sem-achado" data-sev="ok">
+    <summary class="check-head">
+      <span class="ind" style="background: #2ecc71"></span>
+      <span class="cid">{{ c.id }}</span>
+      <span class="ctitulo">{{ c.titulo }}</span>
+      <span class="tags">
+        {% if c.confianca == "ESTENDIDO" %}<span class="tag estendido" title="Leiaute pendente de conferência contra o Guia Prático vigente — tratar como pista, não como certeza">ESTENDIDO</span>{% endif %}
+        <span class="tag ok">ok</span>
+      </span>
+    </summary>
+    <p class="explicacao-ok">
+      Rodou contra as {{ "{:,}".format(laudo.arquivo.total_linhas) }} linhas do arquivo e não
+      encontrou nenhuma ocorrência de <b>{{ c.titulo | lower }}</b>.
+      {% if c.confianca == "ESTENDIDO" %}
+      Depende de registro cujo leiaute exato ainda não foi conferido contra o Guia Prático
+      oficial — o resultado "sem achado" em si já é confiável (o check rodou normalmente),
+      só a estrutura de campo por trás dele é que é pista, não certeza fechada.
+      {% endif %}
+    </p>
+    <p class="base">base: {{ c.base }}</p>
+  </details>
+  {% endif %}
   {% endfor %}
 </section>
 {% endblock %}
