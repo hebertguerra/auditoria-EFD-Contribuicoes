@@ -3,7 +3,8 @@ from collections import defaultdict
 from . import check, Achado, ESTRUTURA, RISCO
 from ..layouts import (PAI, LAYOUTS, COD_SIT_SEM_EFEITO, BLOCO_1_REGISTROS_OBSOLETOS,
                         NAT_BC_CRED_VALIDOS, CST_VALIDOS, COD_CRED_VALIDOS,
-                        COD_VER_MODELADO, COD_VER_LEIAUTE_ANTIGO_M210, COD_VER_CONHECIDOS)
+                        COD_VER_MODELADO, COD_VER_LEIAUTE_ANTIGO_M210, COD_VER_CONHECIDOS,
+                        ORDEM_BLOCO)
 
 
 def _dv_cnpj(c):
@@ -278,21 +279,13 @@ def e21(doc):
                 yield Achado(r.linha, reg, c, "COD_CTA sem 0500 correspondente")
 
 
-# Ordem oficial dos blocos da EFD-Contribuicoes: 0 (abertura/identificacao),
-# A (servicos - ISS), C (mercadorias - NF-e), D (servicos - CT-e/transporte),
-# F (demais documentos/operacoes), M (apuracao PIS/COFINS), 1 (complemento
-# da escrituracao), 9 (controle/encerramento). Estrutura fixa e amplamente
-# documentada do leiaute, estavel entre versoes.
-_ORDEM_BLOCO = {"0": 0, "A": 1, "C": 2, "D": 3, "F": 4, "M": 5, "1": 6, "9": 7}
-
-
 @check("E22", "Registro fora da ordem oficial de blocos do arquivo",
        ESTRUTURA, "ALTA",
        "Guia Pratico - ordem fixa dos blocos: 0, A, C, D, F, M, 1, 9")
 def e22(doc):
     maior_idx, maior_bloco, maior_linha = -1, None, 0
     for r in doc.registros:
-        idx = _ORDEM_BLOCO.get(r.reg[0])
+        idx = ORDEM_BLOCO.get(r.reg[0])
         if idx is None:
             continue
         if idx < maior_idx:

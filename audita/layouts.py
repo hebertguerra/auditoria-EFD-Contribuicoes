@@ -623,6 +623,25 @@ COD_MOD_CONHECIDOS = {"01", "02", "04", "06", "07", "08", "8B", "09", "10",
                        "11", "13", "14", "15", "16", "17", "18", "21", "22",
                        "26", "27", "29", "55", "57", "59", "60", "63", "65", "66"}
 
+# Ordem oficial dos blocos da EFD-Contribuicoes: 0 (abertura/identificacao),
+# A (servicos - ISS), C (mercadorias - NF-e), D (servicos - CT-e/transporte),
+# F (demais documentos/operacoes), M (apuracao PIS/COFINS), 1 (complemento
+# da escrituracao), 9 (controle/encerramento). Estrutura fixa e amplamente
+# documentada do leiaute, estavel entre versoes. Compartilhada entre o
+# check E22 (ordem dos blocos) e o resumo de composicao do arquivo no
+# laudo (report.py) -- fonte unica para nao divergir.
+ORDEM_BLOCO = {"0": 0, "A": 1, "C": 2, "D": 3, "F": 4, "M": 5, "1": 6, "9": 7}
+NOME_BLOCO = {
+    "0": "Abertura e cadastros",
+    "A": "Serviços (ISS)",
+    "C": "Mercadorias (NF-e)",
+    "D": "Serviços de transporte (CT-e)",
+    "F": "Demais documentos e operações",
+    "M": "Apuração PIS/COFINS",
+    "1": "Complemento da escrituração",
+    "9": "Controle e encerramento",
+}
+
 # Guia Pratico, Tabela 3.1.1 (Versao do Leiaute) -- NAO confundir com a
 # versao do proprio Guia Pratico como documento (ex.: "versao 1.35",
 # atualizada em 18/06/2021): sao numeracoes independentes. O Guia e

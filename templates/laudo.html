@@ -35,6 +35,73 @@
   </div>
 </section>
 
+{% if r.com_achado %}
+<section class="resumo-executivo">
+  <h2>Resumo executivo</h2>
+  <p class="resumo-frase">
+    <b>{{ r.com_achado }}</b> check(s) com achado, <b>{{ r.ocorrencias }}</b> ocorrência(s),
+    <b>R$ {{ "{:,.2f}".format(r.valor_total) }}</b> sob análise
+    {% if r.por_severidade.ALTA %}({{ r.por_severidade.ALTA }} de severidade alta){% endif %}.
+    Comece pelos itens abaixo — são os de maior valor envolvido, não necessariamente na
+    ordem em que aparecem na lista completa mais abaixo.
+  </p>
+
+  {% if r.aviso_bloco_m_ausente %}
+  <div class="flash resumo-correlacao">
+    <p>⚠ <b>Possível causa comum:</b> {{ r.aviso_bloco_m_ausente }}</p>
+  </div>
+  {% endif %}
+
+  <div class="resumo-categorias">
+    {% for cat in ["RISCO", "OPORTUNIDADE", "ESTRUTURA"] %}
+    {% if r.por_caixa[cat] %}
+    <div class="categoria-item" style="border-top-color: {{ r.cor_caixa[cat] }}">
+      <span class="categoria-cabeca">
+        <span class="categoria-nome" style="color: {{ r.cor_caixa[cat] }}">{{ cat }}</span>
+        <span class="categoria-num">{{ r.por_caixa[cat] }} check(s)</span>
+      </span>
+      <span class="categoria-valor">R$ {{ "{:,.2f}".format(r.valor_por_caixa[cat]) }}</span>
+      <span class="categoria-descr">{{ r.descr_caixa[cat] }}</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  <ol class="resumo-top">
+    {% for c in r.top_achados %}
+    <li>
+      <span class="tag sev" style="background: {{ c.cor_severidade }}">{{ c.severidade }}</span>
+      <span class="cid">{{ c.id }}</span>
+      <span class="ctitulo">{{ c.titulo }}</span>
+      <span class="valor">R$ {{ "{:,.2f}".format(c.valor) }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
+
+<details class="composicao-arquivo">
+  <summary>
+    <h2>Composição do arquivo</h2>
+    <span class="composicao-sub">
+      {{ laudo.arquivo.tipos_registro }} tipo(s) de registro em
+      {{ laudo.arquivo.composicao|length }} bloco(s) — clique para ver o detalhamento
+    </span>
+  </summary>
+  <div class="composicao-blocos">
+    {% for b in laudo.arquivo.composicao %}
+    <div class="bloco-item">
+      <h3>Bloco {{ b.letra }} — {{ b.nome }} <span class="bloco-total">{{ b.total }} registro(s)</span></h3>
+      <div class="bloco-registros">
+        {% for reg in b.registros %}
+        <span class="reg-chip">{{ reg.reg }} <b>{{ reg.qtd }}</b></span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</details>
+
 <section class="cards">
   <div class="card"><span class="num">{{ r.com_achado }}</span><span class="rot">checks com achado</span></div>
   <div class="card ok"><span class="num">{{ r.sem_achado }}</span><span class="rot">sem achado</span></div>

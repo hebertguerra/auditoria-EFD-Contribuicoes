@@ -50,6 +50,48 @@ a{color:inherit;text-decoration:none}
 .btn-novo{padding:9px 16px;border-radius:9px;font-weight:600;font-size:13px;
   color:var(--azul);border:1px solid var(--linha);background:#fff}
 
+.resumo-executivo{background:#fff;border:1px solid var(--linha);border-left:4px solid var(--azul2);
+  border-radius:12px;padding:18px 20px;margin-bottom:22px}
+.resumo-executivo h2{margin:0 0 8px;font-size:16px;color:var(--azul)}
+.resumo-frase{margin:0 0 4px;font-size:14px;line-height:1.6}
+.resumo-correlacao{margin:12px 0}
+.resumo-correlacao p{margin:0;font-size:13px;line-height:1.5}
+.resumo-top{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.resumo-top li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 10px;background:var(--fundo);border-radius:8px}
+.resumo-top .cid{font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--azul)}
+.resumo-top .ctitulo{flex:1;min-width:180px;font-size:13.5px}
+.resumo-top .valor{font-weight:700;color:var(--azul);font-family:ui-monospace,Menlo,Consolas,monospace}
+
+.resumo-categorias{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:10px;margin:14px 0 0}
+.categoria-item{border-top:3px solid;padding:10px 12px;background:var(--fundo);border-radius:8px;
+  display:flex;flex-direction:column;gap:3px}
+.categoria-cabeca{display:flex;justify-content:space-between;align-items:baseline}
+.categoria-nome{font-weight:800;font-size:12px;letter-spacing:.4px}
+.categoria-num{font-size:12px;color:var(--cinza)}
+.categoria-valor{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;
+  font-size:15px;color:var(--azul)}
+.categoria-descr{font-size:11.5px;color:var(--cinza);line-height:1.4}
+
+.composicao-arquivo{background:#fff;border:1px solid var(--linha);border-radius:12px;
+  margin-bottom:22px;overflow:hidden}
+.composicao-arquivo summary{padding:14px 18px;cursor:pointer;list-style:none;
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.composicao-arquivo summary::-webkit-details-marker{display:none}
+.composicao-arquivo summary h2{margin:0;font-size:16px;color:var(--azul)}
+.composicao-arquivo summary::after{content:'ver detalhamento ⌄';margin-left:auto;
+  font-size:11px;color:var(--cinza);font-weight:600}
+.composicao-arquivo[open] summary::after{content:'fechar ⌃'}
+.composicao-sub{font-size:12.5px;color:var(--cinza)}
+.composicao-blocos{padding:0 18px 16px;display:flex;flex-direction:column;gap:14px}
+.bloco-item h3{margin:0 0 6px;font-size:13px;color:var(--azul);font-weight:700}
+.bloco-total{font-weight:500;color:var(--cinza);font-size:12px;text-transform:none}
+.bloco-registros{display:flex;flex-wrap:wrap;gap:6px}
+.reg-chip{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+  background:var(--fundo);border:1px solid var(--linha);border-radius:6px;padding:3px 8px}
+.reg-chip b{color:var(--azul)}
+
 .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
 .card{background:#fff;border:1px solid var(--linha);border-radius:12px;
   padding:14px 16px;display:flex;flex-direction:column;gap:2px}

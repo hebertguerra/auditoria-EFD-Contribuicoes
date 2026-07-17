@@ -521,6 +521,39 @@ experiente as levantaria:
     arquivo — arriscar isso geraria falso positivo em `E04`. Total de
     registros conferidos campo a campo: de 60 para 66.
 
-11. **Isto é diagnóstico técnico do arquivo, não parecer fiscal — e os
+11. **Laudo era uma lista plana de checks por severidade/ID — sem
+    resposta a "por onde eu começo" (corrigido nesta rodada).** Adicionado
+    um resumo executivo no topo do laudo web (`report.py`/`laudo.html`):
+    os achados de maior valor envolvido primeiro (não a ordem de
+    severidade/ID da lista completa abaixo), e um aviso automático de
+    correlação quando `R03` (bloco de apuração M100/M200/M500/M600
+    ausente) aparece junto com `R01`/`R02`/`R06` — confirmado numa
+    auditoria real que essa combinação costuma ter a mesma causa raiz
+    (0111/crédito não recalculados por falta do bloco M). O aviso só
+    dispara quando `R03` de fato tem achado (não é palpite: `R03` já
+    *significa* "sem bloco de apuração") e sempre em linguagem de
+    hipótese ("costuma ser a causa"), nunca como conclusão fechada.
+
+12. **Laudo mostrava "48 tipos de registro" sem dizer quais nem quantos —
+    zero visibilidade do que o arquivo REALMENTE contém, só do resultado
+    dos checks (corrigido nesta rodada).** Duas adições, pensadas em
+    quem abre o laudo pela primeira vez e precisa entender rápido:
+    - **Distribuição por categoria** (RISCO/OPORTUNIDADE/ESTRUTURA) no
+      resumo executivo — quantos checks e quanto em R$ cada categoria
+      representa, com a mesma cor já usada nas tags individuais.
+    - **Composição do arquivo** — seção expansível (mesmo padrão
+      `<details>` dos cards "sem achado") mostrando cada bloco (0, A, C,
+      D, F, M, 1, 9) com nome legível e a contagem de cada tipo de
+      registro dentro dele. `_ORDEM_BLOCO`, que só existia dentro de
+      `estrutura.py` para o check E22, virou `ORDEM_BLOCO`/`NOME_BLOCO`
+      em `layouts.py` — fonte única, reaproveitada tanto pelo check
+      quanto pelo resumo. No arquivo real da Ideal Agro, essa seção
+      deixa visível em um clique que o Bloco M tem só 12 registros
+      (`M001/M400/M410/M800/M810/M990` — nenhum `M100/M200/M500/M600`)
+      contra 5.469 do Bloco C — a mesma ausência que embasa o aviso de
+      causa comum do item 11, agora visível diretamente, sem precisar
+      ler achado nenhum primeiro.
+
+13. **Isto é diagnóstico técnico do arquivo, não parecer fiscal — e os
     checks T01-T05 são sinalização para revisão humana, não substituem
     análise jurídica.**
